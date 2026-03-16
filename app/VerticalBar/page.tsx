@@ -51,6 +51,8 @@ export default function VerticalBar({ children }: { children: React.ReactNode })
           <Link href="/Login" onClick={() => setOpen(false)}>Login</Link>
 
           <Link href="/Cadastro" onClick={() => setOpen(false)}>Cadastro</Link>
+
+          <Link href="/Produtos" onClick={() => setOpen(false)}>Meus Produtos</Link>
         </nav>
       </aside>
 
