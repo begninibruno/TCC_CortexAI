@@ -6,7 +6,8 @@ import {
   TrendingUp, DollarSign, Users, Target, Shield, 
   ArrowRight, CheckCircle, Zap, Brain, BarChart3,
   Store, Phone, Mail, Lock, User, Building2,
-  ChevronRight, Sparkles, Award, Clock, Play
+  ChevronRight, Sparkles, Award, Clock, Play,
+  FileText // Adicionei este ícone para o documento
 } from 'lucide-react';
 
 export default function PaginaCadastro() {
@@ -16,6 +17,7 @@ export default function PaginaCadastro() {
     responsavel: '',
     email: '',
     telefone: '',
+    cpfCnpj: '', // ADICIONADO AQUI
     tipoNegocio: '',
     faturamento: '',
     senha: '',
@@ -54,6 +56,10 @@ export default function PaginaCadastro() {
         novosErros.email = 'E-mail inválido';
       }
       if (!formData.telefone) novosErros.telefone = 'Telefone é obrigatório';
+      
+      // VALIDAÇÃO DO NOVO CAMPO ADICIONADA AQUI
+      if (!formData.cpfCnpj) novosErros.cpfCnpj = 'CPF ou CNPJ é obrigatório';
+      
     } else if (etapa === 3) {
       if (!formData.tipoNegocio) novosErros.tipoNegocio = 'Selecione o tipo de negócio';
     } else if (etapa === 4) {
@@ -96,7 +102,7 @@ export default function PaginaCadastro() {
     const numeros = valor.replace(/\D/g, '');
     if (numeros.length <= 11) {
       return numeros.replace(/^(\d{2})(\d)/g, '($1) $2')
-                   .replace(/(\d)(\d{4})$/, '$1-$2');
+                    .replace(/(\d)(\d{4})$/, '$1-$2');
     }
     return valor;
   };
@@ -324,8 +330,33 @@ export default function PaginaCadastro() {
                     <p className="mt-1 text-sm text-red-500">{erros.telefone}</p>
                   )}
                 </div>
-              </>
-            )}
+
+                {/* CPF/CNPJ */}
+                <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        CPF / CNPJ (Apenas números)
+      </label>
+      <div className="relative">
+        <FileText className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+        <input
+          type="text"
+          value={formData.cpfCnpj}
+          // Remove tudo que não for número e limita a 14 caracteres no estado
+          onChange={(e) => {
+            const apenasNumeros = e.target.value.replace(/\D/g, '').slice(0, 14);
+            setFormData({...formData, cpfCnpj: apenasNumeros});
+          }}
+          className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0A1A2F] focus:border-transparent"
+          placeholder="Ex: 12345678901"
+          maxLength={14} 
+        />
+      </div>
+      {erros.cpfCnpj && (
+        <p className="mt-1 text-sm text-red-500">{erros.cpfCnpj}</p>
+      )}
+    </div>
+  </>
+)}
 
             {/* Etapa 3 */}
             {etapa === 3 && (
