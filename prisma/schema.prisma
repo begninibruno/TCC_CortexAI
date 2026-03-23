@@ -1,0 +1,48 @@
+// This is your Prisma schema file
+
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ENUMS (opções pré-definidas)
+
+enum TipoNegocio {
+  LOJA_FISICA
+  ECOMMERCE
+  SERVICOS
+  ALIMENTACAO
+  OUTRO
+}
+
+enum FaixaFaturamento {
+  ATE_5K
+  DE_5K_A_10K
+  DE_10K_A_50K
+  DE_50K_A_100K
+  ACIMA_100K
+}
+
+// MODEL PRINCIPAL
+
+model Empresa {
+  id                String   @id @default(uuid())
+  nomeEmpresa       String
+  nomeResponsavel   String
+  documento         String @u  // CPF ou CNPJ
+  email             String   @unique
+  telefone          String
+  tipoNegocio       TipoNegocio
+  faturamento       FaixaFaturamento
+  senha             String
+  createdAt         DateTime @default(now())
+}

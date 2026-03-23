@@ -48,10 +48,6 @@ export default function VerticalBar({ children }: { children: React.ReactNode })
         <nav className="flex flex-col gap-4">
           <Link href="/" onClick={() => setOpen(false)}>Home</Link>
 
-          <Link href="/Login" onClick={() => setOpen(false)}>Login</Link>
-
-          <Link href="/Cadastro" onClick={() => setOpen(false)}>Cadastro</Link>
-
           <Link href="/Produtos" onClick={() => setOpen(false)}>Meus Produtos</Link>
         </nav>
       </aside>

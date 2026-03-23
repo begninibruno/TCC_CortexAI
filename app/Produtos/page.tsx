@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import VerticalBar from "../VerticalBar/page";
 
 type Produto = {
   id: number;
@@ -32,6 +33,7 @@ export default function Produtos() {
   ]);
 
   return (
+    <VerticalBar>
     <div className="p-8">
 
       {/* Header */}
@@ -135,5 +137,6 @@ export default function Produtos() {
       )}
 
     </div>
+    </VerticalBar>
   );
 }

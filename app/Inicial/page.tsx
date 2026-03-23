@@ -57,7 +57,7 @@ export default function LandingPage() {
               Sua loja agora tem uma <span className="text-indigo-600">Voz Inteligente.</span>
             </h1>
             <p className="text-lg text-slate-500 mb-8 max-w-lg leading-relaxed font-medium">
-              Um assistente virtual físico que recebe seus clientes, tira dúvidas e vende, enquanto você gerencia tudo pelo seu celular.
+              Um assistente virtual físico que obedece os seus comandos.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
               <button className="bg-indigo-600 text-white px-8 py-4 rounded-2xl font-black text-lg shadow-xl shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 group">
@@ -93,8 +93,8 @@ export default function LandingPage() {
           <h2 className="text-3xl font-black text-center mb-16">Instalação em 3 Passos</h2>
           <div className="grid md:grid-cols-3 gap-8">
             <StepCard number="01" title="Plug & Play" desc="Conecte o dispositivo na tomada e no Wi-Fi da sua loja." />
-            <StepCard number="02" title="Alimente a IA" desc="Suba seu catálogo de produtos e informações da loja no app." />
-            <StepCard number="03" title="Venda mais" desc="Seu assistente começa a interagir com os clientes em tempo real." />
+            <StepCard number="02" title="Alimente a IA" desc="Suba seu catálogo de produtos e informações da loja no software." />
+            <StepCard number="03" title="Venda mais" desc="Seu assistente começa a interagir com você em tempo real." />
           </div>
         </div>
       </section>
@@ -148,7 +148,7 @@ export default function LandingPage() {
           <h2 className="text-3xl font-black mb-12 text-center">Dúvidas Frequentes</h2>
           <div className="space-y-4">
             <FaqItem q="Preciso de internet para funcionar?" a="Sim, o assistente utiliza processamento em nuvem e precisa de uma conexão Wi-Fi estável." />
-            <FaqItem q="A IA aprende sozinha sobre minha loja?" a="Você fornece a base de dados inicial e a IA otimiza as respostas conforme as perguntas dos clientes." />
+            <FaqItem q="A IA aprende sozinha sobre minha loja?" a="Você fornece a base de dados inicial e a IA otimiza as respostas conforme seu comando." />
             <FaqItem q="O hardware tem garantia?" a="Sim, fornecemos garantia total e substituição imediata em planos Pro e Enterprise." />
           </div>
         </div>
@@ -156,7 +156,7 @@ export default function LandingPage() {
 
       {/* --- FOOTER --- */}
       <footer className="py-12 border-t border-slate-100 text-center">
-        <p className="text-sm text-slate-400 font-medium">© 2024 VOX.IA - Todos os direitos reservados.</p>
+        <p className="text-sm text-slate-400 font-medium">© 2026 CORTEX.AI - Todos os direitos reservados.</p>
       </footer>
     </div>
   );
