@@ -1,7 +1,7 @@
 // app/cadastro/page.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 import { 
   TrendingUp, DollarSign, Users, Target, Shield, 
   ArrowRight, CheckCircle, Zap, Brain, BarChart3,
@@ -10,41 +10,39 @@ import {
   FileText // Adicionei este ícone para o documento
 } from 'lucide-react';
 
+type FormDataType = {
+  empresa: string;
+  responsavel: string;
+  email: string;
+  telefone: string;
+  cpfCnpj: string;
+  senha: string;
+  confirmarSenha: string;
+};
+
+type ErrorsType = Partial<Record<keyof FormDataType, string>>;
+
 export default function PaginaCadastro() {
   const [etapa, setEtapa] = useState(1);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormDataType>({
     empresa: '',
     responsavel: '',
     email: '',
     telefone: '',
     cpfCnpj: '', // ADICIONADO AQUI
-    tipoNegocio: '',
-    faturamento: '',
     senha: '',
     confirmarSenha: ''
   });
-  const [erros, setErros] = useState({});
+  const [erros, setErros] = useState<ErrorsType>({} as ErrorsType);
   const [carregando, setCarregando] = useState(false);
   const [cadastroSucesso, setCadastroSucesso] = useState(false);
 
-  const tiposNegocio = [
-    'Varejo - Loja física',
-    'Varejo - Online',
-    'Alimentação',
-    'Serviços',
-    'Indústria',
-    'Profissional Liberal'
-  ];
 
-  const faixasFaturamento = [
-    'Até R$ 5.000/mês',
-    'R$ 5.000 a R$ 15.000/mês',
-    'R$ 15.000 a R$ 30.000/mês',
-    'Acima de R$ 30.000/mês'
-  ];
+
+
 
   const validarEtapa = () => {
-    const novosErros = {};
+    const novosErros: ErrorsType = {};
 
     if (etapa === 1) {
       if (!formData.empresa) novosErros.empresa = 'Nome da empresa é obrigatório';
@@ -60,9 +58,8 @@ export default function PaginaCadastro() {
       // VALIDAÇÃO DO NOVO CAMPO ADICIONADA AQUI
       if (!formData.cpfCnpj) novosErros.cpfCnpj = 'CPF ou CNPJ é obrigatório';
       
+   
     } else if (etapa === 3) {
-      if (!formData.tipoNegocio) novosErros.tipoNegocio = 'Selecione o tipo de negócio';
-    } else if (etapa === 4) {
       if (!formData.senha) {
         novosErros.senha = 'Senha é obrigatória';
       } else if (formData.senha.length < 6) {
@@ -87,18 +84,44 @@ export default function PaginaCadastro() {
     setEtapa(etapa - 1);
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!validarEtapa()) return;
 
     setCarregando(true);
-    setTimeout(() => {
-      setCarregando(false);
+    try {
+      console.log('Enviando payload de cadastro:', formData);
+      const res = await fetch('/api/cadastro', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const isJson = res.headers.get('content-type')?.includes('application/json');
+      const data = isJson ? await res.json() : null;
+
+      if (!res.ok) {
+        const text = !isJson ? await res.text() : undefined;
+        throw new Error(
+          data?.error ||
+            text ||
+            `Erro ao cadastrar: status ${res.status}`
+        );
+      }
+
       setCadastroSucesso(true);
-    }, 2000);
+
+    } catch (error: any) {
+      console.error('Cadastro falhou:', error);
+      alert(`Erro ao cadastrar: ${error?.message || 'erro desconhecido'}`);
+    } finally {
+      setCarregando(false);
+    }
   };
 
-  const formatarTelefone = (valor) => {
+  const formatarTelefone = (valor: string) => {
     const numeros = valor.replace(/\D/g, '');
     if (numeros.length <= 11) {
       return numeros.replace(/^(\d{2})(\d)/g, '($1) $2')
@@ -225,17 +248,16 @@ export default function PaginaCadastro() {
             <h2 className="text-2xl font-bold text-gray-800">
               {etapa === 1 && 'Dados da empresa'}
               {etapa === 2 && 'Informações de contato'}
-              {etapa === 3 && 'Sobre seu negócio'}
-              {etapa === 4 && 'Crie sua senha'}
+              {etapa === 3 && 'Crie sua senha'}
             </h2>
             <p className="text-gray-500 text-sm mt-1">
-              Etapa {etapa} de 4
+              Etapa {etapa} de 3
             </p>
           </div>
 
           {/* Progresso */}
           <div className="flex gap-2 mb-8">
-            {[1, 2, 3, 4].map((num) => (
+            {[1, 2, 3].map((num) => (
               <div
                 key={num}
                 className={`h-2 flex-1 rounded-full transition-colors ${
@@ -358,54 +380,9 @@ export default function PaginaCadastro() {
   </>
 )}
 
+            
             {/* Etapa 3 */}
             {etapa === 3 && (
-              <>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Tipo de negócio
-                  </label>
-                  <select
-                    value={formData.tipoNegocio}
-                    onChange={(e) => setFormData({...formData, tipoNegocio: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0A1A2F] focus:border-transparent"
-                  >
-                    <option value="">Selecione...</option>
-                    {tiposNegocio.map(tipo => (
-                      <option key={tipo} value={tipo}>{tipo}</option>
-                    ))}
-                  </select>
-                  {erros.tipoNegocio && (
-                    <p className="mt-1 text-sm text-red-500">{erros.tipoNegocio}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Faturamento mensal (opcional)
-                  </label>
-                  <select
-                    value={formData.faturamento}
-                    onChange={(e) => setFormData({...formData, faturamento: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0A1A2F] focus:border-transparent"
-                  >
-                    <option value="">Selecione...</option>
-                    {faixasFaturamento.map(faixa => (
-                      <option key={faixa} value={faixa}>{faixa}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="bg-blue-50 rounded-lg p-4">
-                  <p className="text-sm text-blue-800">
-                    <span className="font-bold">💡 Dica:</span> Sabendo seu faturamento, podemos personalizar melhor as recomendações para seu negócio.
-                  </p>
-                </div>
-              </>
-            )}
-
-            {/* Etapa 4 */}
-            {etapa === 4 && (
               <>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -459,7 +436,7 @@ export default function PaginaCadastro() {
                 </button>
               )}
               
-              {etapa < 4 ? (
+              {etapa < 3 ? (
                 <button
                   type="button"
                   onClick={avancarEtapa}
