@@ -1,6 +1,6 @@
 // app/cadastro/page.tsx
 'use client';
-
+import { useRouter } from 'next/navigation';
 import { useState, useEffect, FormEvent } from 'react';
 import { 
   TrendingUp, DollarSign, Users, Target, Shield, 
@@ -23,6 +23,7 @@ type FormDataType = {
 type ErrorsType = Partial<Record<keyof FormDataType, string>>;
 
 export default function PaginaCadastro() {
+  const router = useRouter();
   const [etapa, setEtapa] = useState(1);
   const [formData, setFormData] = useState<FormDataType>({
     empresa: '',
@@ -91,6 +92,7 @@ export default function PaginaCadastro() {
     setCarregando(true);
     try {
       console.log('Enviando payload de cadastro:', formData);
+
       const res = await fetch('/api/cadastro', {
         method: 'POST',
         headers: {
@@ -99,20 +101,16 @@ export default function PaginaCadastro() {
         body: JSON.stringify(formData),
       });
 
-      const isJson = res.headers.get('content-type')?.includes('application/json');
-      const data = isJson ? await res.json() : null;
+      const data = await res.json();
 
       if (!res.ok) {
-        const text = !isJson ? await res.text() : undefined;
-        throw new Error(
-          data?.error ||
-            text ||
-            `Erro ao cadastrar: status ${res.status}`
-        );
+        console.error('Erro ao cadastrar:', data);
+        alert(data?.erro || 'Erro ao cadastrar');
+        return;
       }
 
-      setCadastroSucesso(true);
-
+      console.log('Cadastro realizado com sucesso:', data);
+      router.push('/Produtos');
     } catch (error: any) {
       console.error('Cadastro falhou:', error);
       alert(`Erro ao cadastrar: ${error?.message || 'erro desconhecido'}`);
@@ -130,41 +128,7 @@ export default function PaginaCadastro() {
     return valor;
   };
 
-  if (cadastroSucesso) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-[#0A1A2F] to-[#1C3B5E] flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white rounded-3xl shadow-2xl p-8 text-center">
-          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <CheckCircle className="w-10 h-10 text-green-500" />
-          </div>
-          
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">
-            Cadastro concluído!
-          </h2>
-          
-          <p className="text-gray-600 mb-6">
-            Bem-vindo ao CortexAI, {formData.responsavel}!
-          </p>
-          
-          <div className="bg-blue-50 rounded-xl p-4 mb-6 text-left">
-            <p className="text-sm text-blue-800 mb-2">
-              📧 Enviamos um e-mail para {formData.email}
-            </p>
-            <p className="text-sm text-blue-800">
-              📱 Em breve entraremos em contato via WhatsApp
-            </p>
-          </div>
-          
-          <button
-            onClick={() => window.location.href = '/dashboard'}
-            className="w-full bg-[#0A1A2F] text-white py-3 rounded-xl font-medium hover:bg-[#1C3B5E] transition-colors"
-          >
-            Acessar minhas informações
-          </button>
-        </div>
-      </div>
-    );
-  }
+  
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0A1A2F] to-[#1C3B5E] flex">

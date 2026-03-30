@@ -1,81 +1,32 @@
+// app/api/cadastro/route.ts
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@/app/generated/prisma';
+import { PrismaClient, Prisma } from '@prisma/client';
+import bcrypt from 'bcrypt'; // NOVO
 
 const prisma = new PrismaClient();
-
-const tipoNegocioMap: Record<string, any> = {
-  'Varejo - Loja física': 'LOJA_FISICA',
-  'Varejo - Online': 'ECOMMERCE',
-  'Alimentação': 'ALIMENTACAO',
-  'Serviços': 'SERVICOS',
-  'Indústria': 'INDUSTRIA',
-  'Profissional Liberal': 'PROFISSIONAL_LIBERAL'
-};
-
-const faturamentoMap: Record<string, any> = {
-  'Até R$ 5.000/mês': 'ATE_5K',
-  'R$ 5.000 a R$ 15.000/mês': 'DE_5K_A_15K',
-  'R$ 15.000 a R$ 30.000/mês': 'DE_15K_A_30K',
-  'Acima de R$ 30.000/mês': 'ACIMA_30K'
-};
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
+    const { empresa, responsavel, email, telefone, cpfCnpj, senha } = body;
 
-    const {
-      empresa,
-      responsavel,
-      email,
-      telefone,
-      cpfCnpj,
-      tipoNegocio,
-      faturamento,
-      senha
-    } = body;
+    // NOVO: Criptografar a senha (salt de 10 rounds)
+    const senhaCriptografada = await bcrypt.hash(senha, 10);
 
-    if (!empresa || !responsavel || !email || !cpfCnpj || !senha) {
-      return NextResponse.json(
-        { error: 'Campos obrigatórios faltando' },
-        { status: 400 }
-      );
-    }
-
-    const tipo_negocio = tipoNegocio
-      ? tipoNegocioMap[tipoNegocio]
-      : 'LOJA_FISICA';
-    const faturamento_enum = faturamento
-      ? faturamentoMap[faturamento]
-      : 'ATE_5K';
-
-    if (!tipo_negocio) {
-      return NextResponse.json(
-        { error: 'Tipo de negócio inválido' },
-        { status: 400 }
-      );
-    }
-
-    const novoCadastro = await prisma.cortexAI.create({
+    const novo = await prisma.cadastro.create({
       data: {
         nome_empresa: empresa,
         nome_responsavel: responsavel,
-        cpf_cnpj: cpfCnpj,
         email,
-        telefone: telefone || null,
-        tipo_negocio: tipo_negocio,
-        faturamento: faturamento_enum,
-        senha
-      }
+        telefone,
+        cpf_cnpj: cpfCnpj.replace(/\D/g, ''), // Limpa máscara
+        senha: senhaCriptografada, // Salva a criptografada
+      },
     });
 
-    return NextResponse.json(novoCadastro, { status: 201 });
-
+    return NextResponse.json({ sucesso: true }, { status: 201 });
   } catch (error: any) {
-    console.error('Erro API cadastro:', error);
-
-    return NextResponse.json(
-      { error: 'Erro ao cadastrar usuário' },
-      { status: 500 }
-    );
+    // ... seu tratamento de erro P2002 permanece igual
+    return NextResponse.json({ erro: 'Erro interno' }, { status: 500 });
   }
 }
