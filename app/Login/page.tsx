@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation'; // ✅ ADICIONADO
 import { 
   Brain, Lock, ArrowRight, Eye, EyeOff,
   Shield, Phone, CheckCircle, AlertCircle, User,
@@ -8,6 +9,8 @@ import {
 } from 'lucide-react';
 
 export default function PaginaLogin() {
+  const router = useRouter(); // ✅ ADICIONADO
+
   const [formData, setFormData] = useState({
     identificador: '',
     senha: ''
@@ -50,7 +53,7 @@ export default function PaginaLogin() {
     setErros({}); 
 
     try {
-      const response = await fetch('/api/login', {
+      const response = await fetch('/api/cadastro/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -72,7 +75,7 @@ export default function PaginaLogin() {
       setLoginSucesso(true);
 
       setTimeout(() => {
-        window.location.href = '/dashboard';
+        router.push('/Produtos'); // ✅ REDIRECIONAMENTO
       }, 1500);
 
     } catch (error) {
