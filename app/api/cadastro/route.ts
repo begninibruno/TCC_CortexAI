@@ -1,7 +1,7 @@
 // app/api/cadastro/route.ts
 import { NextResponse } from 'next/server';
 import { PrismaClient, Prisma } from '@prisma/client';
-import bcrypt from 'bcrypt'; // NOVO
+import bcrypt from 'bcryptjs'; // NOVO
 
 const prisma = new PrismaClient();
 
@@ -19,7 +19,7 @@ export async function POST(req: Request) {
         nome_responsavel: responsavel,
         email,
         telefone,
-        cpf_cnpj: cpfCnpj.replace(/\D/g, ''), // Limpa máscara
+        ccpf_cnpj: cpfCnpj?.replace(/\D/g, '') || '', // Limpa máscara
         senha: senhaCriptografada, // Salva a criptografada
       },
     });
