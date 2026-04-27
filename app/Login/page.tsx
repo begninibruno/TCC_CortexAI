@@ -62,14 +62,23 @@ export default function PaginaLogin() {
         }),
       });
 
-      const data = await response.json();
+      const text = await response.text();
 
-      if (!response.ok) {
-        setErros({ geral: data.erro || 'Falha ao realizar login' });
-        setCarregando(false);
-        return;
-      }
+let data;
+try {
+  data = JSON.parse(text);
+} catch {
+  console.error("Resposta não é JSON:", text);
+  setErros({ geral: "Erro inesperado do servidor" });
+  setCarregando(false);
+  return;
+}
 
+if (!response.ok) {
+  setErros({ geral: data.erro || 'Falha ao realizar login' });
+  setCarregando(false);
+  return;
+}
       // Sucesso: Salva o token e redireciona
       localStorage.setItem('@CortexAI:token', data.token);
       setLoginSucesso(true);
