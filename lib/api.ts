@@ -191,8 +191,18 @@ export async function marcarTodasLidas(): Promise<void> {
 }
 
 // ═══════════════ AI ═══════════════
-export async function processarTexto(texto: string) {
-  return request('/api/processar-texto', { method: 'POST', body: JSON.stringify({ texto }) });
+type AIResponse = {
+  itens: Array<{
+    nome: string;
+    quantidade?: number;
+  }>;
+};
+
+export async function processarTexto(texto: string): Promise<AIResponse> {
+  return request<AIResponse>('/api/processar-texto', {
+    method: 'POST',
+    body: JSON.stringify({ texto })
+  });
 }
 
 // ═══════════════ ESP32 ═══════════════
