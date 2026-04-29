@@ -19,7 +19,7 @@ export async function POST(req: Request) {
         nome_responsavel: responsavel,
         email,
         telefone,
-        ccpf_cnpj: cpfCnpj?.replace(/\D/g, '') || '', // Limpa máscara
+        cpf_cnpj: cpfCnpj?.replace(/\D/g, '') || '', // Limpa máscara
         senha: senhaCriptografada, // Salva a criptografada
       },
     });
