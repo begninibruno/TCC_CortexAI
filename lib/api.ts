@@ -80,6 +80,7 @@ export interface VendaInput {
   metodoPagamento?: string;
   troco?: number;
   cupomUsado?: string;
+  audioLogId?: string;
 }
 
 export async function registrarVenda(data: VendaInput): Promise<Venda> {
