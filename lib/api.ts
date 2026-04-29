@@ -33,8 +33,11 @@ export async function getProdutosPaginado(page: number, limit: number, q?: strin
   return request<PaginatedResult<Produto>>(`/api/produtos?${params}`);
 }
 
-export async function createProduto(data: Record<string, unknown>) {
-  return request('/api/produto', { method: 'POST', body: JSON.stringify(data) });
+export async function createProduto(data: Record<string, unknown>): Promise<Produto> {
+  return request<Produto>('/api/produto', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  });
 }
 
 export async function updateProduto(data: Record<string, unknown>) {
