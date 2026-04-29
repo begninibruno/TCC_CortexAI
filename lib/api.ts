@@ -50,8 +50,11 @@ export async function getCategorias(): Promise<Categoria[]> {
   return request<Categoria[]>('/api/categorias');
 }
 
-export async function createCategoria(data: Record<string, unknown>) {
-  return request('/api/categoria', { method: 'POST', body: JSON.stringify(data) });
+export async function createCategoria(data: Record<string, unknown>): Promise<Categoria> {
+  return request<Categoria>('/api/categoria', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  });
 }
 
 export async function updateCategoria(data: Record<string, unknown>) {
