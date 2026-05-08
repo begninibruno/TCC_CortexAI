@@ -3,8 +3,10 @@ import { NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
+import { NextRequest } from 'next/server';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { empresa, responsavel, email, telefone, cpfCnpj, senha } = body;
