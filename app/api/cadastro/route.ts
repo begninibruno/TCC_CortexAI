@@ -56,18 +56,22 @@ export async function POST(req: Request) {
       },
       { status: 201 }
     );
-  } catch (error: any) {
+  } 
+  
+    catch (error: any) {
     // Tratamento específico de erros do Prisma
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      // P2002: Violação de constraint única (email ou CPF duplicado)
-      if (error.code === 'P2002') {
-        const campo = error.meta?.target?.[0];
-        return NextResponse.json(
-          { erro: `${campo} já cadastrado no sistema` },
-          { status: 409 }
-        );
-      }
-    }
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+  if (error.code === 'P2002') {
+    // Pegamos o campo que falhou. Se não houver, usamos 'Campo' como fallback
+    const targets = error.meta?.target as string[] | undefined;
+    const campo = targets ? targets[0] : 'Dado';
+
+    return NextResponse.json(
+      { erro: `${campo} já cadastrado no sistema` },
+      { status: 409 }
+    );
+  }
+}
 
     console.error('Erro ao criar cadastro:', error);
     return NextResponse.json(
