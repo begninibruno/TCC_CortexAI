@@ -199,19 +199,19 @@ if (!response.ok) {
             <button
               type="button"
               onClick={() => { setTipoLogin('cpf'); setFormData({...formData, identificador: ''}); setErros({}); }}
-              className={`p-4 rounded-xl border-2 transition-all ${tipoLogin === 'cpf' ? 'border-[#0A1A2F] bg-[#0A1A2F]/5' : 'border-gray-200'}`}
+              className={`p-4 rounded-xl border-2 transition-all ${tipoLogin === 'cpf' ? 'border-[#365782] bg-[#0A1A2F]/5' : 'border-gray-200'}`}
             >
-              <User className={`w-6 h-6 mx-auto mb-2 ${tipoLogin === 'cpf' ? 'text-[#0A1A2F]' : 'text-gray-400'}`} />
-              <span className="text-sm font-medium block text-center">CPF</span>
+              <User className={`w-6 h-6 mx-auto mb-2 ${tipoLogin === 'cpf' ? 'text-[#1a1a1b]' : 'text-gray-900'}`} />
+              <span className="text-sm font-medium block text-center text-gray-900">CPF</span>
             </button>
             <button
               type="button"
               onClick={() => { setTipoLogin('cnpj'); setFormData({...formData, identificador: ''}); setErros({}); }}
               className={`p-4 rounded-xl border-2 transition-all ${tipoLogin === 'cnpj' ? 'border-[#0A1A2F] bg-[#0A1A2F]/5' : 'border-gray-200'}`}
             >
-              <Building2 className={`w-6 h-6 mx-auto mb-2 ${tipoLogin === 'cnpj' ? 'text-[#0A1A2F]' : 'text-gray-400'}`} />
-              <span className="text-sm font-medium block text-center">CNPJ</span>
-            </button>
+              <Building2 className={`w-6 h-6 mx-auto mb-2 ${tipoLogin === 'cnpj' ? 'text-[#0A1A2F]' : 'text-gray-900'}`} />
+              <span className="text-sm font-medium block text-center text-gray-900">CNPJ</span>
+            </button> 
           </div>
 
           {/* Alerta de erro da API */}
@@ -232,7 +232,7 @@ if (!response.ok) {
                   value={formData.identificador}
                   onChange={handleIdentificadorChange}
                   maxLength={tipoLogin === 'cpf' ? 14 : 18}
-                  className={`w-full pl-10 pr-3 py-2 border ${erros.identificador ? 'border-red-300 bg-red-50' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-[#0A1A2F] outline-none`}
+                  className={`w-full pl-10 pr-3 py-2 border ${erros.identificador ? 'border-red-300 bg-red-50' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-[#0A1A2F] outline-none text-gray-900 placeholder:text-gray-500`}
                   placeholder={tipoLogin === 'cpf' ? '000.000.000-00' : '00.000.000/0000-00'}
                 />
               </div>
@@ -247,7 +247,7 @@ if (!response.ok) {
                   type={mostrarSenha ? "text" : "password"}
                   value={formData.senha}
                   onChange={(e) => setFormData({...formData, senha: e.target.value})}
-                  className={`w-full pl-10 pr-10 py-2 border ${erros.senha ? 'border-red-300 bg-red-50' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-[#0A1A2F] outline-none`}
+                  className={`w-full pl-10 pr-10 py-2 border ${erros.senha ? 'border-red-300 bg-red-50' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-[#0A1A2F] outline-none placeholder:text-gray-500`}
                   placeholder="••••••"
                 />
                 <button type="button" onClick={() => setMostrarSenha(!mostrarSenha)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
