@@ -2,26 +2,40 @@
 
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import {
-  LayoutDashboard, Package, Tag, ShoppingCart, BarChart2,
-  Cpu, Moon, Sun, Wifi, WifiOff,
-  Bell, Settings, Users,
-  ArrowLeft, ArrowRight, Zap,
+  Home,
+  LayoutDashboard,
+  Package,
+  Tag,
+  ShoppingCart,
+  BarChart2,
+  Cpu,
+  Moon,
+  Sun,
+  Wifi,
+  WifiOff,
+  Bell,
+  Settings,
+  Users,
+  ArrowLeft,
+  ArrowRight,
+  Zap,
+  Gift,
 } from 'lucide-react';
 import { useTheme, useSidebar } from '@/lib/context';
 import { getEspStatus, marcarNaoLidasCount } from '@/lib/api';
 
 const NAV_ITEMS = [
-  { label: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { label: 'PDV', href: '/PDV', icon: Zap },
-  { label: 'Estoque', href: '/Estoque', icon: Package },
-  { label: 'Categorias', href: '/Categorias', icon: Tag },
-  { label: 'Vendas', href: '/Vendas', icon: ShoppingCart },
-  { label: 'Clientes', href: '/Clientes', icon: Users },
-  { label: 'Relatórios', href: '/Relatorios', icon: BarChart2 },
-  { label: 'Notificações', href: '/Notificacoes', icon: Bell },
-  { label: 'Configurações', href: '/Config', icon: Settings },
+  { label: 'Produtos', href: '/Dashboard/Produtos', icon: Package },
+  { label: 'Categorias', href: '/Dashboard/Categorias', icon: Tag },
+  { label: 'Clientes', href: '/Dashboard/Clientes', icon: Users },
+  { label: 'Estoque', href: '/Dashboard/Estoque', icon: Package },
+  { label: 'PDV', href: '/Dashboard/PDV', icon: Zap },
+  { label: 'Vendas', href: '/Dashboard/Vendas', icon: ShoppingCart },
+  { label: 'Cupons', href: '/Dashboard/Cupons', icon: Gift },
+  { label: 'Relatórios', href: '/Dashboard/Relatorios', icon: BarChart2 },
+  { label: 'Configurações', href: '/Dashboard/Config', icon: Settings },
 ];
 
 function SidebarContent({ pathname, collapsed, setSidebarOpen, notifsCount }: {
@@ -38,57 +52,55 @@ function SidebarContent({ pathname, collapsed, setSidebarOpen, notifsCount }: {
       try {
         const s = await getEspStatus();
         setEspOnline(s.online);
-      } catch { setEspOnline(false); }
+      } catch {
+        setEspOnline(false);
+      }
     }
     checkEsp();
     const id = setInterval(checkEsp, 30000);
     return () => clearInterval(id);
   }, []);
 
+  const activeNavItem = NAV_ITEMS.reduce((best, item) => {
+    if (pathname === item.href || pathname.startsWith(`${item.href}/`)) {
+      return !best || item.href.length > best.href.length ? item : best;
+    }
+    return best;
+  }, null as (typeof NAV_ITEMS)[number] | null);
+
+  const isNavItemActive = (href: string) => activeNavItem?.href === href;
+
   return (
     <>
-      {/* Logo */}
-      <div className={`flex items-center border-b border-slate-100 dark:border-slate-800 ${collapsed ? 'justify-center px-3 py-4' : 'gap-3 px-5 py-5'}`}>
-        <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center flex-shrink-0">
-          <Cpu className="text-white" size={18} />
+      <div className={`flex items-center border-b border-blue-900 ${collapsed ? 'justify-center px-3 py-4' : 'gap-3 px-5 py-5'}`}>
+        <div className="w-12 h-12 rounded-3xl bg-gradient-to-br from-blue-600 to-cyan-500 flex items-center justify-center shadow-xl shadow-cyan-500/20">
+          <Cpu className="text-white" size={22} />
         </div>
         {!collapsed && (
           <div>
-            <span className="font-black text-xl tracking-tighter text-slate-900 dark:text-slate-100 leading-none block">
-              CortexAI
-            </span>
-            <span className="text-slate-400 dark:text-slate-500 text-xs font-bold">POS System</span>
+            <span className="block text-slate-900 dark:text-white text-xl font-black tracking-tight">CortexAI</span>
+            <span className="text-slate-500 dark:text-slate-300 text-xs uppercase tracking-[0.3em]">Painel</span>
           </div>
         )}
       </div>
 
-      {/* Navigation */}
-      <nav className={`flex-1 overflow-y-auto ${collapsed ? 'px-2 py-2' : 'px-3 py-4 space-y-1'}`}>
+      <nav className={`flex-1 overflow-y-auto ${collapsed ? 'px-2 py-2' : 'px-3 py-4 space-y-2'}`}>
         {NAV_ITEMS.map(({ label, href, icon: Icon }) => {
-          const isActive = pathname === href;
+          const isActive = isNavItemActive(href);
           return (
             <Link
               key={href}
               href={href}
               onClick={() => setSidebarOpen?.(false)}
-              className={`flex items-center gap-3 rounded-xl text-sm font-bold transition-all duration-200 group
-                ${collapsed
-                  ? `justify-center p-3 ${isActive ? 'bg-indigo-600 text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`
-                  : `px-4 py-3 ${isActive ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200 dark:shadow-indigo-900/50' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100'}`
-                }`}
+              className={`group flex items-center gap-3 rounded-3xl text-sm font-semibold transition-all duration-200 ease-out ${collapsed ? 'justify-center px-2 py-3' : 'px-4 py-3'} ${isActive ? 'bg-blue-500 text-white shadow-[0_20px_50px_rgba(15,23,42,0.35)]' : 'bg-slate-100 dark:bg-white/5 text-slate-900 dark:text-slate-200 hover:bg-blue-500/20 hover:text-white'} transform ${isActive ? '' : 'hover:-translate-x-0.5'}`}
             >
-              <div className="relative flex-shrink-0">
-                <Icon className={`w-5 h-5 transition-transform duration-200 group-hover:scale-110 ${isActive ? 'text-white' : ''}`} />
-                {href === '/Notificacoes' && notifsCount > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white text-[8px] font-black flex items-center justify-center">
-                    {notifsCount > 9 ? '9+' : notifsCount}
-                  </span>
-                )}
+              <div className={`flex h-10 w-10 items-center justify-center rounded-3xl ${isActive ? 'bg-blue-600 text-white' : 'bg-slate-200 dark:bg-white/10 text-slate-900 dark:text-slate-200'} transition-all duration-200 group-hover:bg-blue-500/25`}>
+                <Icon className="w-5 h-5" />
               </div>
               {!collapsed && (
                 <>
-                  {label}
-                  {isActive && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-white/60" />}
+                  <span className="whitespace-nowrap">{label}</span>
+                  {isActive && <span className="ml-auto h-2 w-2 rounded-full bg-white/80" />}
                 </>
               )}
             </Link>
@@ -96,34 +108,19 @@ function SidebarContent({ pathname, collapsed, setSidebarOpen, notifsCount }: {
         })}
       </nav>
 
-      {/* Bottom */}
-      <div className={`border-t border-slate-100 dark:border-slate-800 ${collapsed ? 'pb-3 pt-2 space-y-2' : 'px-3 pb-4 pt-3 space-y-2'}`}>
-        {/* ESP32 */}
-        <div className={`${collapsed ? 'flex justify-center p-3' : 'flex items-center gap-3 px-4 py-3'} rounded-xl text-sm ${espOnline
-          ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400'
-          : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
-        }`}>
-          {espOnline
-            ? <><Wifi className="w-4 h-4 flex-shrink-0" /><span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /></>
-            : <WifiOff className="w-4 h-4 flex-shrink-0" />}
-          {!collapsed && (
-            <p className="font-black text-xs uppercase tracking-tighter">{espOnline ? 'Online' : 'Offline'}</p>
-          )}
+      <div className={`border-t border-blue-900 dark:border-slate-700 ${collapsed ? 'pb-3 pt-2 space-y-2' : 'px-3 pb-4 pt-3 space-y-3'}`}>
+        <div className={`${collapsed ? 'flex justify-center p-3' : 'flex items-center gap-3 px-4 py-3'} rounded-3xl ${espOnline ? 'bg-emerald-500/10 text-emerald-800 dark:text-emerald-200' : 'bg-slate-100 dark:bg-white/5 text-slate-700 dark:text-slate-300'} transition-colors duration-200`}>
+          {espOnline ? <Wifi className="w-4 h-4" /> : <WifiOff className="w-4 h-4" />}
+          {!collapsed && <span className="text-xs font-black uppercase tracking-[0.28em]">{espOnline ? 'ESP online' : 'ESP offline'}</span>}
         </div>
 
-        {/* Dark mode */}
         <button
           onClick={toggleTheme}
-          className={`w-full flex items-center gap-3 rounded-xl text-sm font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-200 ${collapsed ? 'justify-center p-3' : 'px-4 py-3'}`}
+          className={`w-full flex items-center gap-3 rounded-3xl ${collapsed ? 'justify-center p-3' : 'px-4 py-3'} bg-slate-100 dark:bg-white/5 text-slate-900 dark:text-slate-200 transition duration-200 hover:bg-blue-500/10 dark:hover:bg-blue-500/20`}
         >
-          <Moon className="w-5 h-5 dark:hidden flex-shrink-0" />
-          <Sun className="w-5 h-5 hidden dark:flex text-amber-500 flex-shrink-0" />
-          {!collapsed && (
-            <>
-              <span className="dark:hidden">Modo Escuro</span>
-              <span className="hidden dark:inline">Modo Claro</span>
-            </>
-          )}
+          <Moon className="w-5 h-5 dark:hidden" />
+          <Sun className="w-5 h-5 hidden dark:flex text-amber-300" />
+          {!collapsed && <span>{dark ? 'Modo Claro' : 'Modo Escuro'}</span>}
         </button>
       </div>
     </>
@@ -138,48 +135,56 @@ export default function Sidebar() {
 
   useEffect(() => {
     async function count() {
-      try { const c = await marcarNaoLidasCount(); setNotifsCount(c); } catch { setNotifsCount(0); }
+      try {
+        const c = await marcarNaoLidasCount();
+        setNotifsCount(c);
+      } catch {
+        setNotifsCount(0);
+      }
     }
     count();
   }, []);
 
   return (
     <>
-      {/* Mobile overlay + slide-in sidebar */}
+      {!sidebarOpen && (
+        <button
+          onClick={() => setSidebarOpen(true)}
+          className="fixed top-4 left-4 z-50 flex h-12 w-12 items-center justify-center rounded-3xl bg-blue-700 text-white shadow-xl shadow-blue-950/40 md:hidden transition-transform duration-200 hover:-translate-y-0.5"
+          aria-label="Abrir menu"
+        >
+          <ArrowRight className="w-6 h-6" />
+        </button>
+      )}
+
       {sidebarOpen && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setSidebarOpen(false)} />
-          <aside className="fixed top-0 left-0 h-screen w-[260px] flex flex-col z-50
-            bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-700 shadow-2xl">
-            <div className="flex justify-between items-center px-4 py-3 border-b border-slate-100 dark:border-slate-800">
-              <button onClick={() => setSidebarOpen(false)} className="text-slate-400 hover:text-slate-600">
+          <div className="fixed inset-0 z-40 bg-slate-950/80 md:hidden" onClick={() => setSidebarOpen(false)} />
+          <aside className="fixed top-0 left-0 z-50 flex h-screen w-[280px] flex-col bg-slate-100 dark:bg-[#071431] border-r border-slate-200 dark:border-blue-900/60 shadow-2xl md:hidden">
+            <div className="flex items-center justify-between px-4 py-4 border-b border-blue-900/70">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-3xl bg-gradient-to-br from-blue-600 to-cyan-500 flex items-center justify-center shadow-xl shadow-cyan-500/20">
+                  <Cpu className="text-white" size={20} />
+                </div>
+                <span className="text-white font-black">CortexAI</span>
+              </div>
+              <button onClick={() => setSidebarOpen(false)} className="text-slate-200 hover:text-white">
                 <ArrowLeft className="w-5 h-5" />
               </button>
-              <span className="font-black text-sm text-slate-600 dark:text-slate-300">Menu</span>
-              <div className="w-5" />
             </div>
             <SidebarContent pathname={pathname} collapsed={false} setSidebarOpen={setSidebarOpen} notifsCount={notifsCount} />
           </aside>
         </>
       )}
 
-      {/* Desktop fixed sidebar */}
-      <aside className={`fixed top-0 left-0 h-screen flex flex-col z-40
-        bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-700 shadow-xl
-        transition-all duration-300 hidden md:flex ${collapsed ? 'w-[72px]' : 'w-[260px]'}`}>
-        <SidebarContent
-          pathname={pathname}
-          collapsed={collapsed}
-          notifsCount={notifsCount}
-        />
-        {/* Collapse toggle at bottom */}
-        <div className="px-3 pb-3 hidden md:block">
+      <aside className={`hidden md:flex md:w-[280px] md:flex-col md:bg-slate-100 dark:md:bg-[#071431] md:border-r md:border-slate-200 dark:md:border-blue-900/60 md:shadow-2xl md:transition-all md:duration-300 ${collapsed ? 'md:w-[88px]' : ''}`}>
+        <SidebarContent pathname={pathname} collapsed={collapsed} notifsCount={notifsCount} />
+        <div className="px-3 pb-4 hidden md:block">
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="w-full flex items-center justify-center gap-3 rounded-xl text-sm font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all bg-slate-50 dark:bg-slate-800 p-3"
+            className="w-full rounded-3xl bg-white/5 px-4 py-3 text-sm font-bold text-slate-200 transition duration-200 hover:bg-white/10"
           >
-            {collapsed ? <ArrowRight className="w-5 h-5" /> : <ArrowLeft className="w-5 h-5 flex-shrink-0" />}
-            {!collapsed && <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Recolher</span>}
+            {collapsed ? 'Abrir' : 'Recolher'}
           </button>
         </div>
       </aside>

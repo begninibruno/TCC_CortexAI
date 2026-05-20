@@ -20,52 +20,199 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+// ═══════════════ Local storage helpers ═══════════════
+const CATEGORIAS_KEY = 'cortexai_categorias';
+const PRODUTOS_KEY = 'cortexai_produtos';
+
+type StoredCategoria = Categoria & { id: number };
+type StoredProduto = Produto & { id: number };
+
+function readLocalStorage<T>(key: string): T[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    return JSON.parse(localStorage.getItem(key) || '[]') as T[];
+  } catch {
+    return [];
+  }
+}
+
+function writeLocalStorage<T>(key: string, value: T[]) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(key, JSON.stringify(value));
+}
+
+function getNextId(items: { id: number }[]): number {
+  return items.length === 0 ? 1 : Math.max(...items.map((item) => item.id)) + 1;
+}
+
+function hasBackend(): boolean {
+  return typeof window !== 'undefined' && Boolean(BASE_URL);
+}
+
+async function backendRequest<T>(path: string, options?: RequestInit): Promise<T> {
+  return request<T>(path, options);
+}
+
 // ═══════════════ Produtos ═══════════════
 export async function getProdutos(): Promise<Produto[]> {
-  return request<Produto[]>('/api/produtos');
+  if (!hasBackend()) {
+    return readLocalStorage<StoredProduto>(PRODUTOS_KEY) || [];
+  }
+  return backendRequest<Produto[]>('/api/produtos');
 }
 
 export async function getProdutosPaginado(page: number, limit: number, q?: string, categoria?: string, status?: string): Promise<PaginatedResult<Produto>> {
+  if (!hasBackend()) {
+    const all = readLocalStorage<StoredProduto>(PRODUTOS_KEY);
+    let filtered = all;
+    if (q) {
+      const lower = q.toLowerCase();
+      filtered = filtered.filter((produto) => produto.nome.toLowerCase().includes(lower) || (produto.sku || '').toLowerCase().includes(lower) || (produto.codigoBarras || '').toLowerCase().includes(lower) || (produto.categoria || '').toLowerCase().includes(lower));
+    }
+    if (categoria) {
+      filtered = filtered.filter((produto) => produto.categoria === categoria);
+    }
+    if (status) {
+      filtered = filtered.filter((produto) => (produto.status || 'ativo') === status);
+    }
+    const total = filtered.length;
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+    const pageIndex = Math.max(1, Math.min(page, totalPages));
+    const data = filtered.slice((pageIndex - 1) * limit, pageIndex * limit);
+    return { data, total, page: pageIndex, totalPages, hasNext: pageIndex < totalPages, hasPrev: pageIndex > 1 };
+  }
   const params = new URLSearchParams({ page: String(page), limit: String(limit) });
   if (q) params.set('q', q);
   if (categoria) params.set('categoria', categoria);
   if (status) params.set('status', status);
-  return request<PaginatedResult<Produto>>(`/api/produtos?${params}`);
+  return backendRequest<PaginatedResult<Produto>>(`/api/produtos?${params}`);
 }
 
 export async function createProduto(data: Record<string, unknown>): Promise<Produto> {
-  return request<Produto>('/api/produto', {
+  if (!hasBackend()) {
+    const itens = readLocalStorage<StoredProduto>(PRODUTOS_KEY);
+    const novo: StoredProduto = {
+      id: getNextId(itens),
+      nome: String(data.nome || ''),
+      estoque: Number(data.estoque ?? 0),
+      preco: Number(data.preco ?? 0),
+      categoria: String(data.categoria || ''),
+      criadoEm: new Date().toISOString(),
+      atualizadoEm: new Date().toISOString(),
+      sku: typeof data.sku === 'string' ? data.sku : null,
+      codigoBarras: typeof data.codigoBarras === 'string' ? data.codigoBarras : null,
+      precoCusto: data.precoCusto != null ? Number(data.precoCusto) : null,
+      margemLucro: data.margemLucro != null ? Number(data.margemLucro) : null,
+      estoqueMinimo: data.estoqueMinimo != null ? Number(data.estoqueMinimo) : null,
+      fornecedor: typeof data.fornecedor === 'string' ? data.fornecedor : null,
+      validade: typeof data.validade === 'string' ? data.validade : null,
+      lote: typeof data.lote === 'string' ? data.lote : null,
+      localizacao: typeof data.localizacao === 'string' ? data.localizacao : null,
+      status: (data.status as Produto['status']) || 'ativo',
+      tags: typeof data.tags === 'string' ? data.tags : null,
+      descricao: typeof data.descricao === 'string' ? data.descricao : null,
+    };
+    writeLocalStorage(PRODUTOS_KEY, [...itens, novo]);
+    return novo;
+  }
+  return backendRequest<Produto>('/api/produto', {
     method: 'POST',
     body: JSON.stringify(data)
   });
 }
 
 export async function updateProduto(data: Record<string, unknown>) {
-  return request('/api/produto', { method: 'PUT', body: JSON.stringify(data) });
+  if (!hasBackend()) {
+    const itens = readLocalStorage<StoredProduto>(PRODUTOS_KEY);
+    const updated = itens.map((produto) => {
+      if (produto.id === Number(data.id) || produto.nome === data.nome) {
+        return {
+          ...produto,
+          ...data,
+          updatedAt: new Date().toISOString(),
+          atualizadoEm: new Date().toISOString(),
+        };
+      }
+      return produto;
+    });
+    writeLocalStorage(PRODUTOS_KEY, updated);
+    return;
+  }
+  return backendRequest('/api/produto', { method: 'PUT', body: JSON.stringify(data) });
 }
 
 export async function deleteProduto(nome: string): Promise<void> {
-  return request<void>('/api/produto', { method: 'DELETE', body: JSON.stringify({ nome }) });
+  if (!hasBackend()) {
+    const itens = readLocalStorage<StoredProduto>(PRODUTOS_KEY);
+    writeLocalStorage(PRODUTOS_KEY, itens.filter((produto) => produto.nome !== nome));
+    return;
+  }
+  return backendRequest<void>('/api/produto', { method: 'DELETE', body: JSON.stringify({ nome }) });
 }
 
 // ═══════════════ Categorias ═══════════════
 export async function getCategorias(): Promise<Categoria[]> {
-  return request<Categoria[]>('/api/categorias');
+  if (!hasBackend()) {
+    return readLocalStorage<StoredCategoria>(CATEGORIAS_KEY) || [];
+  }
+  return backendRequest<Categoria[]>('/api/categorias');
 }
 
 export async function createCategoria(data: Record<string, unknown>): Promise<Categoria> {
-  return request<Categoria>('/api/categoria', {
+  if (!hasBackend()) {
+    const itens = readLocalStorage<StoredCategoria>(CATEGORIAS_KEY);
+    const novo: StoredCategoria = {
+      id: getNextId(itens),
+      nome: String(data.nome || ''),
+      criadoEm: new Date().toISOString(),
+      descricao: typeof data.descricao === 'string' ? data.descricao : null,
+      tipoProduto: typeof data.tipoProduto === 'string' ? (data.tipoProduto as Categoria['tipoProduto']) : null,
+      classificacaoBebida: typeof data.classificacaoBebida === 'string' ? (data.classificacaoBebida as Categoria['classificacaoBebida']) : null,
+      icone: typeof data.icone === 'string' ? data.icone : null,
+      cor: typeof data.cor === 'string' ? data.cor : null,
+      margemLucroPadrao: data.margemLucroPadrao != null ? Number(data.margemLucroPadrao) : null,
+      metaVendasMensais: data.metaVendasMensais != null ? Number(data.metaVendasMensais) : null,
+      comissaoPorVenda: data.comissaoPorVenda != null ? Number(data.comissaoPorVenda) : null,
+      ordemExibicao: data.ordemExibicao != null ? Number(data.ordemExibicao) : null,
+      status: (data.status as Categoria['status']) || 'ativa',
+      tags: Array.isArray(data.tags) ? data.tags.join(', ') : typeof data.tags === 'string' ? data.tags : null,
+    };
+    writeLocalStorage(CATEGORIAS_KEY, [...itens, novo]);
+    return novo;
+  }
+  return backendRequest<Categoria>('/api/categoria', {
     method: 'POST',
     body: JSON.stringify(data)
   });
 }
 
 export async function updateCategoria(data: Record<string, unknown>) {
-  return request('/api/categoria', { method: 'PUT', body: JSON.stringify(data) });
+  if (!hasBackend()) {
+    const itens = readLocalStorage<StoredCategoria>(CATEGORIAS_KEY);
+    const updated = itens.map((categoria) => {
+      if (categoria.id === Number(data.id) || categoria.nome === data.nome || categoria.nome === data.novoNome) {
+        return {
+          ...categoria,
+          ...data,
+          nome: typeof data.novoNome === 'string' ? data.novoNome : categoria.nome,
+          atualizadoEm: new Date().toISOString(),
+        };
+      }
+      return categoria;
+    });
+    writeLocalStorage(CATEGORIAS_KEY, updated);
+    return;
+  }
+  return backendRequest('/api/categoria', { method: 'PUT', body: JSON.stringify(data) });
 }
 
 export async function deleteCategoria(nome: string): Promise<void> {
-  return request<void>('/api/categoria', { method: 'DELETE', body: JSON.stringify({ nome }) });
+  if (!hasBackend()) {
+    const itens = readLocalStorage<StoredCategoria>(CATEGORIAS_KEY);
+    writeLocalStorage(CATEGORIAS_KEY, itens.filter((categoria) => categoria.nome !== nome));
+    return;
+  }
+  return backendRequest<void>('/api/categoria', { method: 'DELETE', body: JSON.stringify({ nome }) });
 }
 
 // ═══════════════ Vendas ═══════════════

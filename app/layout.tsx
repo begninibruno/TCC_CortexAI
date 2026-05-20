@@ -1,6 +1,6 @@
 
 import "./globals.css";
-
+import AppShell from '@/components/AppShell';
 
 export default function RootLayout({
   children,
@@ -9,14 +9,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`antialiased`}
-        
-      >
-        
-
-        {children}
-
+      <body className="antialiased">
+        <AppShell>{children}</AppShell>
       </body>
     </html>
   );

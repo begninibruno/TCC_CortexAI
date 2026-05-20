@@ -1,8 +1,14 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../lib/prisma';
 import bcrypt from 'bcryptjs';
+<<<<<<< HEAD
+=======
+import { prisma } from '@/lib/prisma';
+import { NextRequest } from 'next/server';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
+>>>>>>> edd634e4ac69bbbd2bd14cada653753f419eb02f
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     console.log('Cadastro request body:', body);
@@ -57,6 +63,7 @@ export async function POST(req: Request) {
       }
     });
 
+<<<<<<< HEAD
     return NextResponse.json({
       mensagem: 'Cadastro realizado com sucesso',
       usuario: {
@@ -65,6 +72,32 @@ export async function POST(req: Request) {
         email: novoUsuario.email
       }
     });
+=======
+    return NextResponse.json(
+      { 
+        sucesso: true,
+        id: novo.id,
+        mensagem: 'Cadastro realizado com sucesso'
+      },
+      { status: 201 }
+    );
+  } 
+  
+    catch (error: any) {
+    // Tratamento específico de erros do Prisma
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+  if (error.code === 'P2002') {
+    // Pegamos o campo que falhou. Se não houver, usamos 'Campo' como fallback
+    const targets = error.meta?.target as string[] | undefined;
+    const campo = targets ? targets[0] : 'Dado';
+
+    return NextResponse.json(
+      { erro: `${campo} já cadastrado no sistema` },
+      { status: 409 }
+    );
+  }
+}
+>>>>>>> edd634e4ac69bbbd2bd14cada653753f419eb02f
 
   } catch (error) {
     console.error(error);
