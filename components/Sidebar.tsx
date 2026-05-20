@@ -27,8 +27,7 @@ import { useTheme, useSidebar } from '@/lib/context';
 import { getEspStatus, marcarNaoLidasCount } from '@/lib/api';
 
 const NAV_ITEMS = [
-  { label: 'Produtos', href: '/Produtos', icon: Package },
-  { label: 'Dashboard', href: '/Dashboard', icon: LayoutDashboard },
+  { label: 'Produtos', href: '/Dashboard/Produtos', icon: Package },
   { label: 'Categorias', href: '/Dashboard/Categorias', icon: Tag },
   { label: 'Clientes', href: '/Dashboard/Clientes', icon: Users },
   { label: 'Estoque', href: '/Dashboard/Estoque', icon: Package },
@@ -36,7 +35,6 @@ const NAV_ITEMS = [
   { label: 'Vendas', href: '/Dashboard/Vendas', icon: ShoppingCart },
   { label: 'Cupons', href: '/Dashboard/Cupons', icon: Gift },
   { label: 'Relatórios', href: '/Dashboard/Relatorios', icon: BarChart2 },
-  { label: 'Notificações', href: '/Dashboard/Notificacoes', icon: Bell },
   { label: 'Configurações', href: '/Dashboard/Config', icon: Settings },
 ];
 

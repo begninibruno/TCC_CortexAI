@@ -135,8 +135,8 @@ export default function LandingPage() {
             <p className="text-white/60">Escolha o nível de inteligência da sua loja.</p>
           </div>
           <div className="grid md:grid-cols-3 gap-8">
-            <PriceCard tier="Starter" price="299" features={['1 Dispositivo', 'IA Padrão', 'Relatórios Mensais']} />
-            <PriceCard tier="Pro" price="599" featured={true} features={['2 Dispositivos', 'IA Personalizada', 'Dashboard Real-time', 'Suporte VIP']} />
+            <PriceCard tier="Starter" price="???" features={['1 Dispositivo', 'IA Padrão', 'Relatórios Mensais']} />
+            <PriceCard tier="Pro" price="???" featured={true} features={['2 Dispositivos', 'IA Personalizada', 'Dashboard Real-time', 'Suporte VIP']} />
             <PriceCard tier="Enterprise" price="Sob Consulta" features={['Dispositivos Ilimitados', 'Integração com ERP', 'API de Dados']} />
           </div>
         </div>
