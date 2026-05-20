@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../../../../lib/prisma';
 import bcrypt from 'bcryptjs';
-
-const prisma = new PrismaClient();
 
 export async function POST(req: Request) {
   try {
@@ -19,15 +17,21 @@ export async function POST(req: Request) {
     // 🔹 Remove máscara (cpf/cnpj)
     const identificadorLimpo = identificador.replace(/\D/g, '');
 
-    // 🔎 Busca usuário no banco
-    const usuario = await prisma.cadastro.findFirst({
+    // 🔎 Busca usuário no banco por identificador
+    let usuario = await prisma.cadastro.findUnique({
       where: {
-        OR: [
-          { cpf_cnpj: identificadorLimpo },
-          { email: identificador } // caso queira login por email também
-        ]
+        identificador: identificadorLimpo
       }
     });
+
+    // Se não encontrar, tenta buscar por email
+    if (!usuario) {
+      usuario = await prisma.cadastro.findUnique({
+        where: {
+          email: identificador
+        }
+      });
+    }
 
     if (!usuario) {
       return NextResponse.json(

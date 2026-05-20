@@ -15,7 +15,7 @@ type FormDataType = {
   responsavel: string;
   email: string;
   telefone: string;
-  cpfCnpj: string;
+  identificador: string;
   senha: string;
   confirmarSenha: string;
 };
@@ -30,7 +30,7 @@ export default function PaginaCadastro() {
     responsavel: '',
     email: '',
     telefone: '',
-    cpfCnpj: '', // ADICIONADO AQUI
+    identificador: '', // ADICIONADO AQUI
     senha: '',
     confirmarSenha: ''
   });
@@ -57,7 +57,7 @@ export default function PaginaCadastro() {
       if (!formData.telefone) novosErros.telefone = 'Telefone é obrigatório';
       
       // VALIDAÇÃO DO NOVO CAMPO ADICIONADA AQUI
-      if (!formData.cpfCnpj) novosErros.cpfCnpj = 'CPF ou CNPJ é obrigatório';
+      if (!formData.identificador) novosErros.identificador = 'CPF ou CNPJ é obrigatório';
       
    
     } else if (etapa === 3) {
@@ -101,16 +101,23 @@ export default function PaginaCadastro() {
         body: JSON.stringify(formData),
       });
 
-      const data = await res.json();
+      const text = await res.text();
+      let data: any;
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch (parseError) {
+        console.error('Resposta inválida do servidor:', text);
+        data = { erro: text || 'Erro interno do servidor' };
+      }
 
       if (!res.ok) {
-        console.error('Erro ao cadastrar:', data);
-        alert(data?.erro || 'Erro ao cadastrar');
+        console.error('Erro ao cadastrar:', res.status, data);
+        alert(data?.erro || `Erro ao cadastrar (${res.status})`);
         return;
       }
 
       console.log('Cadastro realizado com sucesso:', data);
-      router.push('/Produtos');
+      router.push('/Dashboard/PDV');
     } catch (error: any) {
       console.error('Cadastro falhou:', error);
       alert(`Erro ao cadastrar: ${error?.message || 'erro desconhecido'}`);
@@ -326,19 +333,19 @@ export default function PaginaCadastro() {
         <FileText className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
         <input
           type="text"
-          value={formData.cpfCnpj}
+          value={formData.identificador}
           // Remove tudo que não for número e limita a 14 caracteres no estado
           onChange={(e) => {
             const apenasNumeros = e.target.value.replace(/\D/g, '').slice(0, 14);
-            setFormData({...formData, cpfCnpj: apenasNumeros});
+            setFormData({...formData, identificador: apenasNumeros});
           }}
           className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0A1A2F] focus:border-transparent"
           placeholder="Ex: 12345678901"
           maxLength={14} 
         />
       </div>
-      {erros.cpfCnpj && (
-        <p className="mt-1 text-sm text-red-500">{erros.cpfCnpj}</p>
+      {erros.identificador && (
+        <p className="mt-1 text-sm text-red-500">{erros.identificador}</p>
       )}
     </div>
   </>

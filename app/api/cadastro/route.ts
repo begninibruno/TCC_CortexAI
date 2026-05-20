@@ -1,77 +1,75 @@
-// app/api/cadastro/route.ts
 import { NextResponse } from 'next/server';
-import { Prisma } from '@prisma/client';
+import { prisma } from '../../../lib/prisma';
 import bcrypt from 'bcryptjs';
-import { prisma } from '@/lib/prisma';
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { empresa, responsavel, email, telefone, cpfCnpj, senha } = body;
+    console.log('Cadastro request body:', body);
+    const { empresa, responsavel, email, telefone, identificador, senha } = body;
 
-    // Validação básica
-    if (!empresa || !responsavel || !email || !senha) {
+    if (!empresa || !responsavel || !email || !telefone || !identificador || !senha) {
       return NextResponse.json(
-        { erro: 'Campos obrigatórios faltando' },
+        { erro: 'Todos os campos são obrigatórios' },
         { status: 400 }
       );
     }
 
-    // Validação de email básica
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
+    const identificadorLimpo = identificador.replace(/\D/g, '');
+    console.log('Cadastro request values:', { empresa, responsavel, email, telefone, identificador: identificadorLimpo });
+
+    const usuarioExistente = await prisma.cadastro.findUnique({
+      where: {
+        identificador: identificadorLimpo
+      }
+    });
+
+    if (usuarioExistente) {
       return NextResponse.json(
-        { erro: 'Email inválido' },
-        { status: 400 }
+        { erro: 'CPF/CNPJ já cadastrado' },
+        { status: 409 }
       );
     }
 
-    // Validação de senha mínima
-    if (senha.length < 6) {
+    const emailJaUsado = await prisma.cadastro.findUnique({
+      where: {
+        email
+      }
+    });
+
+    if (emailJaUsado) {
       return NextResponse.json(
-        { erro: 'Senha deve ter no mínimo 6 caracteres' },
-        { status: 400 }
+        { erro: 'E-mail já cadastrado' },
+        { status: 409 }
       );
     }
 
-    // Criptografar a senha (salt de 10 rounds)
-    const senhaCriptografada = await bcrypt.hash(senha, 10);
+    const senhaHash = await bcrypt.hash(senha, 10);
 
-    const novo = await prisma.cadastro.create({
+    const novoUsuario = await prisma.cadastro.create({
       data: {
         nome_empresa: empresa,
         nome_responsavel: responsavel,
         email,
         telefone,
-        cpf_cnpj: cpfCnpj?.replace(/\D/g, '') || '',
-        senha: senhaCriptografada,
-      },
+        identificador: identificadorLimpo,
+        senha: senhaHash
+      }
     });
 
-    return NextResponse.json(
-      { 
-        sucesso: true,
-        id: novo.id,
-        mensagem: 'Cadastro realizado com sucesso'
-      },
-      { status: 201 }
-    );
-  } catch (error: any) {
-    // Tratamento específico de erros do Prisma
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      // P2002: Violação de constraint única (email ou CPF duplicado)
-      if (error.code === 'P2002') {
-        const campo = error.meta?.target?.[0];
-        return NextResponse.json(
-          { erro: `${campo} já cadastrado no sistema` },
-          { status: 409 }
-        );
+    return NextResponse.json({
+      mensagem: 'Cadastro realizado com sucesso',
+      usuario: {
+        id: novoUsuario.id,
+        nome: novoUsuario.nome_responsavel,
+        email: novoUsuario.email
       }
-    }
+    });
 
-    console.error('Erro ao criar cadastro:', error);
+  } catch (error) {
+    console.error(error);
     return NextResponse.json(
-      { erro: 'Erro interno ao processar cadastro' },
+      { erro: 'Erro interno do servidor' },
       { status: 500 }
     );
   }

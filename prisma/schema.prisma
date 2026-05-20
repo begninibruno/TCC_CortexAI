@@ -14,7 +14,7 @@ model Cadastro {
   nome_responsavel String   @db.VarChar(255)
   email            String   @unique @db.VarChar(255)
   telefone         String   @db.VarChar(20)
-  cpf_cnpj         String   @unique @db.VarChar(14)
+  identificador    String   @unique @db.VarChar(14)
   senha            String
   criado_em        DateTime @default(now())
 

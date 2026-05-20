@@ -84,7 +84,7 @@ if (!response.ok) {
       setLoginSucesso(true);
 
       setTimeout(() => {
-        router.push('/Produtos'); // ✅ REDIRECIONAMENTO
+        router.push('/componentes/Sidebar'); // ✅ REDIRECIONAMENTO
       }, 1500);
 
     } catch (error) {
