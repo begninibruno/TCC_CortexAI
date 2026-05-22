@@ -1,20 +1,31 @@
-import { NextResponse } from 'next/server';
-import { prisma } from '../../../lib/prisma';
-import bcrypt from 'bcryptjs';
-<<<<<<< HEAD
-=======
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { NextRequest } from 'next/server';
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
->>>>>>> edd634e4ac69bbbd2bd14cada653753f419eb02f
+import bcrypt from 'bcryptjs';
+import { Prisma } from '@prisma/client';
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    console.log('Cadastro request body:', body);
-    const { empresa, responsavel, email, telefone, identificador, senha } = body;
 
-    if (!empresa || !responsavel || !email || !telefone || !identificador || !senha) {
+    console.log('Cadastro request body:', body);
+
+    const {
+      empresa,
+      responsavel,
+      email,
+      telefone,
+      identificador,
+      senha
+    } = body;
+
+    if (
+      !empresa ||
+      !responsavel ||
+      !email ||
+      !telefone ||
+      !identificador ||
+      !senha
+    ) {
       return NextResponse.json(
         { erro: 'Todos os campos são obrigatórios' },
         { status: 400 }
@@ -22,7 +33,14 @@ export async function POST(req: NextRequest) {
     }
 
     const identificadorLimpo = identificador.replace(/\D/g, '');
-    console.log('Cadastro request values:', { empresa, responsavel, email, telefone, identificador: identificadorLimpo });
+
+    console.log('Cadastro request values:', {
+      empresa,
+      responsavel,
+      email,
+      telefone,
+      identificador: identificadorLimpo
+    });
 
     const usuarioExistente = await prisma.cadastro.findUnique({
       where: {
@@ -63,44 +81,35 @@ export async function POST(req: NextRequest) {
       }
     });
 
-<<<<<<< HEAD
-    return NextResponse.json({
-      mensagem: 'Cadastro realizado com sucesso',
-      usuario: {
-        id: novoUsuario.id,
-        nome: novoUsuario.nome_responsavel,
-        email: novoUsuario.email
-      }
-    });
-=======
     return NextResponse.json(
-      { 
+      {
         sucesso: true,
-        id: novo.id,
-        mensagem: 'Cadastro realizado com sucesso'
+        mensagem: 'Cadastro realizado com sucesso',
+        usuario: {
+          id: novoUsuario.id,
+          nome: novoUsuario.nome_responsavel,
+          email: novoUsuario.email
+        }
       },
       { status: 201 }
     );
-  } 
-  
-    catch (error: any) {
-    // Tratamento específico de erros do Prisma
-  if (error instanceof Prisma.PrismaClientKnownRequestError) {
-  if (error.code === 'P2002') {
-    // Pegamos o campo que falhou. Se não houver, usamos 'Campo' como fallback
-    const targets = error.meta?.target as string[] | undefined;
-    const campo = targets ? targets[0] : 'Dado';
 
-    return NextResponse.json(
-      { erro: `${campo} já cadastrado no sistema` },
-      { status: 409 }
-    );
-  }
-}
->>>>>>> edd634e4ac69bbbd2bd14cada653753f419eb02f
-
-  } catch (error) {
+  } catch (error: any) {
     console.error(error);
+
+    // Tratamento de erro do Prisma
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === 'P2002') {
+        const targets = error.meta?.target as string[] | undefined;
+        const campo = targets ? targets[0] : 'Dado';
+
+        return NextResponse.json(
+          { erro: `${campo} já cadastrado no sistema` },
+          { status: 409 }
+        );
+      }
+    }
+
     return NextResponse.json(
       { erro: 'Erro interno do servidor' },
       { status: 500 }
