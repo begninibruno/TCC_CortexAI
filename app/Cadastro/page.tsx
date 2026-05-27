@@ -1,14 +1,30 @@
 // app/cadastro/page.tsx
 'use client';
 import { useRouter } from 'next/navigation';
-import { useState, useEffect, FormEvent } from 'react';
-import { 
-  TrendingUp, DollarSign, Users, Target, Shield, 
-  ArrowRight, CheckCircle, Zap, Brain, BarChart3,
-  Store, Phone, Mail, Lock, User, Building2,
-  ChevronRight, Sparkles, Award, Clock, Play,
-  FileText // Adicionei este ícone para o documento
+import { useState, FormEvent } from 'react';
+
+import {
+  TrendingUp,
+  DollarSign,
+  Users,
+  Target,
+  ArrowRight,
+  CheckCircle,
+  Brain,
+  Store,
+  Phone,
+  Mail,
+  Lock,
+  User,
+  ChevronRight,
+  FileText
 } from 'lucide-react';
+
+import { auth, db } from '@/src/firebase';
+
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+
+import { doc, setDoc } from 'firebase/firestore';
 
 type FormDataType = {
   empresa: string;
@@ -86,45 +102,67 @@ export default function PaginaCadastro() {
   };
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!validarEtapa()) return;
 
-    setCarregando(true);
-    try {
-      console.log('Enviando payload de cadastro:', formData);
+  e.preventDefault();
 
-      const res = await fetch('/api/cadastro', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
+  if (!validarEtapa()) return;
 
-      const text = await res.text();
-      let data: any;
-      try {
-        data = text ? JSON.parse(text) : {};
-      } catch (parseError) {
-        console.error('Resposta inválida do servidor:', text);
-        data = { erro: text || 'Erro interno do servidor' };
+  setCarregando(true);
+
+  try {
+
+    // CRIA USUÁRIO NO FIREBASE AUTH
+
+    const userCredential =
+      await createUserWithEmailAndPassword(
+        auth,
+        formData.email,
+        formData.senha
+      );
+
+    const user = userCredential.user;
+
+
+    // SALVA DADOS NO FIRESTORE
+
+    await setDoc(
+      doc(db, 'empresas', user.uid),
+      {
+
+        empresa: formData.empresa,
+
+        responsavel: formData.responsavel,
+
+        email: formData.email,
+
+        telefone: formData.telefone,
+
+        identificador: formData.identificador,
+
+        createdAt: new Date()
+
       }
+    );
 
-      if (!res.ok) {
-        console.error('Erro ao cadastrar:', res.status, data);
-        alert(data?.erro || `Erro ao cadastrar (${res.status})`);
-        return;
-      }
+    console.log('Cadastro realizado com sucesso');
 
-      console.log('Cadastro realizado com sucesso:', data);
-      router.push('/Dashboard/PDV');
-    } catch (error: any) {
-      console.error('Cadastro falhou:', error);
-      alert(`Erro ao cadastrar: ${error?.message || 'erro desconhecido'}`);
-    } finally {
-      setCarregando(false);
-    }
-  };
+    router.push('/Dashboard/PDV');
+
+  } catch (error) {
+
+    console.error('Cadastro falhou:', error);
+
+    alert('Erro ao cadastrar');
+
+  } finally {
+
+    setCarregando(false);
+
+  }
+
+};
+
+
 
   const formatarTelefone = (valor: string) => {
     const numeros = valor.replace(/\D/g, '');
