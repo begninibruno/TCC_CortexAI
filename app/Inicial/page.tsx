@@ -18,10 +18,10 @@ export default function LandingPage() {
       <nav className="fixed w-full z-50 bg-[#0A1A2F]/80 backdrop-blur-md border-b border-white/10">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
-              <Cpu className="text-white" size={18} />
+            <div className="w-18 h-18 bg-blue- rounded-lg flex items-center justify-center">
+              <img src="logo.png"/>
             </div>
-            <span className="font-black text-xl tracking-tighter">CortexAI</span>
+            <span className="font-black text-xl tracking-tighter">Cortex AI</span>
           </div>
           
           <div className="hidden md:flex items-center gap-8 text-sm font-bold text-white/80">
@@ -135,9 +135,9 @@ export default function LandingPage() {
             <p className="text-white/60">Escolha o nível de inteligência da sua loja.</p>
           </div>
           <div className="grid md:grid-cols-3 gap-8">
-            <PriceCard tier="Starter" price="???" features={['1 Dispositivo', 'IA Padrão', 'Relatórios Mensais']} />
-            <PriceCard tier="Pro" price="???" featured={true} features={['2 Dispositivos', 'IA Personalizada', 'Dashboard Real-time', 'Suporte VIP']} />
-            <PriceCard tier="Enterprise" price="Sob Consulta" features={['Dispositivos Ilimitados', 'Integração com ERP', 'API de Dados']} />
+            <PriceCard tier="Starter" price="59,90" features={['Controle de estoque', 'Gestão de clientes', 'Relatórios Mensais']} />
+            <PriceCard tier="Pro" price="99,90" featured={true} features={['Tudo do plano Starter+','1 Dispositivo MiniCortex AI', 'IA Personalizada','Suporte']} />
+            <PriceCard tier="Enterprise" price="199,90" features={['Tudo do plano Pro+','1 Dispositivo Cortex AI', 'API de Dados', 'Suporte VIP']} />
           </div>
         </div>
       </section>
