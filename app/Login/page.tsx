@@ -113,13 +113,9 @@ export default function PaginaLogin() {
       // REDIRECIONA
 
       setTimeout(() => {
-<<<<<<< Updated upstream
-        router.push('/componentes/Sidebar'); // ✅ REDIRECIONAMENTO
-=======
+                router.push('/componentes/Sidebar'); // ✅ REDIRECIONAMENTO
 
         router.push('/Dashboard/Produtos');
-
->>>>>>> Stashed changes
       }, 1500);
 
     } catch (error: any) {
