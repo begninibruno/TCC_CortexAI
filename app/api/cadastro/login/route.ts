@@ -1,8 +1,5 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
-
-const prisma = new PrismaClient();
 
 export async function POST(req: Request) {
   try {
@@ -16,25 +13,20 @@ export async function POST(req: Request) {
       );
     }
 
-    // 🔎 Busca usuário no banco pelo e-mail cadastrado
-    const usuario = await prisma.cadastro.findFirst({
-      where: {
-        email: {
-          equals: email.trim(),
-          mode: 'insensitive'
-        }
-      }
-    });
+    // TEMPORÁRIO:
+    // Simula um usuário para evitar dependência do Prisma
 
-    if (!usuario) {
-      return NextResponse.json(
-        { erro: 'Usuário não encontrado com esse e-mail' },
-        { status: 401 }
-      );
-    }
+    const usuario = {
+      id: 1,
+      nome_responsavel: 'Usuário Teste',
+      email: email.trim(),
+      senha: await bcrypt.hash('123456', 10),
+    };
 
-    // 🔐 Verifica senha
-    const senhaValida = await bcrypt.compare(senha, usuario.senha);
+    const senhaValida = await bcrypt.compare(
+      senha,
+      usuario.senha
+    );
 
     if (!senhaValida) {
       return NextResponse.json(
@@ -43,22 +35,18 @@ export async function POST(req: Request) {
       );
     }
 
-    // 🔑 Aqui você pode gerar JWT (opcional)
-    // Por enquanto vamos simular um token
-    const token = 'token_fake_123';
-
     return NextResponse.json({
       mensagem: 'Login realizado com sucesso',
-      token,
+      token: 'token_fake_123',
       usuario: {
         id: usuario.id,
         nome: usuario.nome_responsavel,
-        email: usuario.email
-      }
+        email: usuario.email,
+      },
     });
-
   } catch (error) {
     console.error(error);
+
     return NextResponse.json(
       { erro: 'Erro interno do servidor' },
       { status: 500 }
