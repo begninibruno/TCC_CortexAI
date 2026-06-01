@@ -113,9 +113,15 @@ export default function PaginaLogin() {
       // REDIRECIONA
 
       setTimeout(() => {
+<<<<<<< HEAD
 
         router.push('/Produtos');
 
+=======
+                router.push('/componentes/Sidebar'); // ✅ REDIRECIONAMENTO
+
+        router.push('/Dashboard/Produtos');
+>>>>>>> cf9209b0c561eac63ab3882c3ece0785ded68474
       }, 1500);
 
     } catch (error: any) {

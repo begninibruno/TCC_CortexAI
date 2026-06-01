@@ -31,10 +31,7 @@ const NAV_ITEMS = [
   { label: 'Categorias', href: '/Dashboard/Categorias', icon: Tag },
   { label: 'Clientes', href: '/Dashboard/Clientes', icon: Users },
   { label: 'Estoque', href: '/Dashboard/Estoque', icon: Package },
-  { label: 'PDV', href: '/Dashboard/PDV', icon: Zap },
   { label: 'Vendas', href: '/Dashboard/Vendas', icon: ShoppingCart },
-  { label: 'Cupons', href: '/Dashboard/Cupons', icon: Gift },
-  { label: 'Relatórios', href: '/Dashboard/Relatorios', icon: BarChart2 },
   { label: 'Configurações', href: '/Dashboard/Config', icon: Settings },
 ];
 
