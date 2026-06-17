@@ -70,14 +70,14 @@ export default function CategoriasPage() {
     if (!form.nome.trim()) { addToast('error', 'Nome é obrigatório'); return; }
     setSaving(true);
     try {
-      if (editCat) { await updateCategoria({ nome: editCat.nome, novoNome: form.nome.trim() !== editCat.nome ? form.nome.trim() : undefined, descricao: form.descricao || '', tipoProduto: form.tipoProduto || '', classificacaoBebida: form.classificacaoBebida || '', icone: form.icone || '', cor: form.cor, margemLucroPadrao: form.margemLucroPadrao || '', metaVendasMensais: form.metaVendasMensais || '', comissaoPorVenda: form.comissaoPorVenda || '', ordemExibicao: form.ordemExibicao || '', status: form.status, tags: form.tags }); deleteExtra(editCat.id); addToast('success', 'Categoria atualizada!'); }
+      if (editCat) { await updateCategoria({ id: editCat.id, nome: form.nome.trim(), descricao: form.descricao || '', tipoProduto: form.tipoProduto || '', classificacaoBebida: form.classificacaoBebida || '', icone: form.icone || '', cor: form.cor, margemLucroPadrao: form.margemLucroPadrao || '', metaVendasMensais: form.metaVendasMensais || '', comissaoPorVenda: form.comissaoPorVenda || '', ordemExibicao: form.ordemExibicao || '', status: form.status, tags: form.tags }); deleteExtra(editCat.id); addToast('success', 'Categoria atualizada!'); }
       else { const created = await createCategoria({ nome: form.nome.trim(), descricao: form.descricao || '', tipoProduto: form.tipoProduto as Categoria['tipoProduto'], classificacaoBebida: form.classificacaoBebida as Categoria['classificacaoBebida'], icone: form.icone || '', cor: form.cor, margemLucroPadrao: form.margemLucroPadrao ? parseFloat(form.margemLucroPadrao) : undefined, metaVendasMensais: form.metaVendasMensais ? parseFloat(form.metaVendasMensais) : undefined, comissaoPorVenda: form.comissaoPorVenda ? parseFloat(form.comissaoPorVenda) : undefined, ordemExibicao: form.ordemExibicao ? parseInt(form.ordemExibicao) : undefined, status: form.status, tags: form.tags ? form.tags.split(',').map((t) => t.trim()).filter(Boolean) : undefined }); if (created) deleteExtra(created.id); addToast('success', 'Categoria criada!'); }
       setShowModal(false); load();
     } catch (e: unknown) { addToast('error', e instanceof Error ? e.message : 'Erro ao salvar categoria'); }
     finally { setSaving(false); }
   }
 
-  async function handleDelete() { if (!deleteTarget) return; setDeleting(true); try { await deleteCategoria(deleteTarget.nome); deleteExtra(deleteTarget.id); addToast('success', 'Categoria excluída!'); setDeleteTarget(null); load(); } catch { addToast('error', 'Erro ao excluir categoria'); } finally { setDeleting(false); } }
+  async function handleDelete() { if (!deleteTarget) return; setDeleting(true); try { await deleteCategoria(String(deleteTarget.id)); deleteExtra(deleteTarget.id); addToast('success', 'Categoria excluída!'); setDeleteTarget(null); load(); } catch { addToast('error', 'Erro ao excluir categoria'); } finally { setDeleting(false); } }
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6">
