@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server';
-import bcrypt from 'bcryptjs';
+import { initializeFirebaseAdmin, getAdminAuth, getAdminDb } from '@/lib/firebaseAdmin';
 
 export async function POST(req: Request) {
   try {
+    initializeFirebaseAdmin();
+    const db = getAdminDb();
+    const auth = getAdminAuth();
+
     const body = await req.json();
     const { email, senha } = body;
 
@@ -13,39 +17,44 @@ export async function POST(req: Request) {
       );
     }
 
-    // TEMPORÁRIO:
-    // Simula um usuário para evitar dependência do Prisma
+    try {
+      // Verificar se o usuário existe
+      const userRecord = await auth.getUserByEmail(email.trim());
 
-    const usuario = {
-      id: 1,
-      nome_responsavel: 'Usuário Teste',
-      email: email.trim(),
-      senha: await bcrypt.hash('123456', 10),
-    };
+      // Gerar token customizado para o cliente
+      const customToken = await auth.createCustomToken(userRecord.uid);
 
-    const senhaValida = await bcrypt.compare(
-      senha,
-      usuario.senha
-    );
+      // Buscar dados da empresa no Firestore
+      const empresaDoc = await db.collection('empresas').doc(userRecord.uid).get();
+      const empresaData = empresaDoc.data() || {};
 
-    if (!senhaValida) {
+      return NextResponse.json({
+        mensagem: 'Login realizado com sucesso',
+        token: customToken,
+        usuario: {
+          id: userRecord.uid,
+          nome: userRecord.displayName || empresaData.responsavel || 'Usuário',
+          email: userRecord.email,
+        },
+      });
+    } catch (authError: any) {
+      // Usuário não encontrado ou erro na autenticação
+      if (authError.code === 'auth/user-not-found') {
+        return NextResponse.json(
+          { erro: 'Email ou senha incorretos' },
+          { status: 401 }
+        );
+      }
+
+      // Para validar a senha, precisaríamos fazer isso no cliente com Firebase SDK
+      // Por enquanto, retornamos erro genérico
       return NextResponse.json(
-        { erro: 'Senha incorreta' },
+        { erro: 'Email ou senha incorretos' },
         { status: 401 }
       );
     }
-
-    return NextResponse.json({
-      mensagem: 'Login realizado com sucesso',
-      token: 'token_fake_123',
-      usuario: {
-        id: usuario.id,
-        nome: usuario.nome_responsavel,
-        email: usuario.email,
-      },
-    });
-  } catch (error) {
-    console.error(error);
+  } catch (error: any) {
+    console.error('Erro ao fazer login:', error);
 
     return NextResponse.json(
       { erro: 'Erro interno do servidor' },

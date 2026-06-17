@@ -102,65 +102,55 @@ export default function PaginaCadastro() {
   };
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
 
-  e.preventDefault();
+    if (!validarEtapa()) return;
 
-  if (!validarEtapa()) return;
+    setCarregando(true);
 
-  setCarregando(true);
+    try {
+      // Usar a nova API de cadastro
+      const response = await fetch('/api/cadastro', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          empresa: formData.empresa,
+          responsavel: formData.responsavel,
+          email: formData.email,
+          telefone: formData.telefone,
+          cpfCnpj: formData.identificador,
+          senha: formData.senha,
+        }),
+      });
 
-  try {
-
-    // CRIA USUÁRIO NO FIREBASE AUTH
-
-    const userCredential =
-      await createUserWithEmailAndPassword(
-        auth,
-        formData.email,
-        formData.senha
-      );
-
-    const user = userCredential.user;
-
-
-    // SALVA DADOS NO FIRESTORE
-
-    await setDoc(
-      doc(db, 'empresas', user.uid),
-      {
-
-        empresa: formData.empresa,
-
-        responsavel: formData.responsavel,
-
-        email: formData.email,
-
-        telefone: formData.telefone,
-
-        identificador: formData.identificador,
-
-        createdAt: new Date()
-
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.erro || 'Erro ao cadastrar');
       }
-    );
 
-    console.log('Cadastro realizado com sucesso');
+      const { token, usuario } = await response.json();
 
-    router.push('/Dashboard/PDV');
+      // Usar Firebase para confirmar o login
+      const { signInWithCustomToken } = await import('firebase/auth');
+      const { auth } = await import('@/src/firebase');
 
-  } catch (error) {
+      await signInWithCustomToken(auth, token);
 
-    console.error('Cadastro falhou:', error);
+      setCadastroSucesso(true);
+      console.log('Cadastro realizado com sucesso');
 
-    alert('Erro ao cadastrar');
-
-  } finally {
-
-    setCarregando(false);
-
-  }
-
-};
+      setTimeout(() => {
+        window.location.href = '/Dashboard/Produtos';
+      }, 1500);
+    } catch (error: any) {
+      console.error('Cadastro falhou:', error);
+      setErros({
+        geral: error.message || 'Erro ao cadastrar',
+      });
+    } finally {
+      setCarregando(false);
+    }
+  };
 
 
 

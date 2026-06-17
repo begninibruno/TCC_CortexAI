@@ -2,6 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
+import { AuthProvider } from '@/context/AuthContext';
 import { SidebarProvider, ThemeProvider, ToastProvider } from '@/lib/context';
 
 const HIDE_SIDEBAR_ROUTES = new Set(['/','/Inicial','/Login','/Cadastro']);
@@ -11,17 +12,19 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const hideSidebar = HIDE_SIDEBAR_ROUTES.has(pathname);
 
   return (
-    <ThemeProvider>
-      <ToastProvider>
-        <SidebarProvider>
-          <div className={hideSidebar ? 'min-h-screen bg-slate-50 text-slate-900 dark:bg-[#071431] dark:text-white' : 'flex min-h-screen bg-slate-50 text-slate-900 dark:bg-[#071431] dark:text-white'}>
-            {!hideSidebar && <Sidebar />}
-            <main className={`flex-1 min-h-screen ${hideSidebar ? '' : ''}`}>
-              {children}
-            </main>
-          </div>
-        </SidebarProvider>
-      </ToastProvider>
-    </ThemeProvider>
+    <AuthProvider>
+      <ThemeProvider>
+        <ToastProvider>
+          <SidebarProvider>
+            <div className={hideSidebar ? 'min-h-screen bg-slate-50 text-slate-900 dark:bg-[#071431] dark:text-white' : 'flex min-h-screen bg-slate-50 text-slate-900 dark:bg-[#071431] dark:text-white'}>
+              {!hideSidebar && <Sidebar />}
+              <main className={`flex-1 min-h-screen ${hideSidebar ? '' : ''}`}>
+                {children}
+              </main>
+            </div>
+          </SidebarProvider>
+        </ToastProvider>
+      </ThemeProvider>
+    </AuthProvider>
   );
 }

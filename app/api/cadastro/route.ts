@@ -1,11 +1,15 @@
 // app/api/cadastro/route.ts
 
 import { NextResponse } from 'next/server';
-import bcrypt from 'bcryptjs';
 import { NextRequest } from 'next/server';
+import { initializeFirebaseAdmin, getAdminAuth, getAdminDb } from '@/lib/firebaseAdmin';
 
 export async function POST(req: NextRequest) {
   try {
+    initializeFirebaseAdmin();
+    const db = getAdminDb();
+    const auth = getAdminAuth();
+
     const body = await req.json();
 
     const {
@@ -70,32 +74,54 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Criptografa a senha
-    const senhaCriptografada = await bcrypt.hash(senha, 10);
+    // Criar usuário no Firebase Auth
+    const userRecord = await auth.createUser({
+      email: email.trim(),
+      password: senha,
+      displayName: responsavel,
+    });
 
-    // TODO: salvar no Firebase futuramente
+    // Salvar dados da empresa no Firestore
+    await db.collection('empresas').doc(userRecord.uid).set({
+      empresa,
+      responsavel,
+      email: email.trim(),
+      telefone: telefoneLimpo,
+      cpfCnpj: cpfCnpjLimpo,
+      criadoEm: new Date().toISOString(),
+      atualizadoEm: new Date().toISOString(),
+    });
+
+    // Gerar token customizado
+    const customToken = await auth.createCustomToken(userRecord.uid);
 
     return NextResponse.json(
       {
         sucesso: true,
         mensagem: 'Cadastro realizado com sucesso',
+        token: customToken,
         usuario: {
-          empresa,
-          responsavel,
-          email,
-          telefone,
-          cpfCnpj: cpfCnpjLimpo,
-          senhaHash: senhaCriptografada,
+          id: userRecord.uid,
+          nome: responsavel,
+          email: email.trim(),
         },
       },
       { status: 201 }
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erro ao criar cadastro:', error);
+
+    // Verificar se é erro de email já existente
+    if (error.code === 'auth/email-already-exists') {
+      return NextResponse.json(
+        { erro: 'Este email já está cadastrado' },
+        { status: 400 }
+      );
+    }
 
     return NextResponse.json(
       {
-        erro: 'Erro interno ao processar cadastro',
+        erro: error.message || 'Erro interno ao processar cadastro',
       },
       { status: 500 }
     );

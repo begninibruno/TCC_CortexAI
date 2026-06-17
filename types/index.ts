@@ -3,7 +3,7 @@ export interface User {
   nome: string;
   email: string;
   fotoPerfil?: string;
-  nomeLoja: string;
+  nomeLoja?: string;
   cnpj?: string;
   cpf?: string;
 }

@@ -1,7 +1,9 @@
 'use client';
 
 import { createContext, useState, useEffect, ReactNode } from 'react';
-import { User, AuthContextType } from '@/types';
+import { auth } from '@/src/firebase';
+import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
+import type { User, AuthContextType } from '@/types';
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -10,23 +12,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Inicializar context ao montar componente
+  // Escutar mudanças de autenticação no Firebase
   useEffect(() => {
-    const savedToken = localStorage.getItem('@CortexAI:token');
-    const savedUser = localStorage.getItem('@CortexAI:user');
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
+      if (firebaseUser) {
+        // Usuário autenticado
+        const idToken = await firebaseUser.getIdToken();
+        const appUser: User = {
+          id: firebaseUser.uid,
+          nome: firebaseUser.displayName || 'Usuário',
+          email: firebaseUser.email || '',
+        };
 
-    if (savedToken && savedUser) {
-      try {
-        const parsedUser = JSON.parse(savedUser);
-        setToken(savedToken);
-        setUser(parsedUser);
-      } catch (error) {
-        console.error('Erro ao recuperar dados do usuário:', error);
+        setUser(appUser);
+        setToken(idToken);
+
+        // Salvar no localStorage para persistência entre recarregamentos
+        localStorage.setItem('@CortexAI:token', idToken);
+        localStorage.setItem('@CortexAI:user', JSON.stringify(appUser));
+        localStorage.setItem('@CortexAI:uid', firebaseUser.uid);
+      } else {
+        // Usuário não autenticado
+        setUser(null);
+        setToken(null);
         localStorage.removeItem('@CortexAI:token');
         localStorage.removeItem('@CortexAI:user');
+        localStorage.removeItem('@CortexAI:uid');
       }
-    }
-    setIsLoading(false);
+
+      setIsLoading(false);
+    });
+
+    // Cleanup
+    return () => unsubscribe();
   }, []);
 
   const login = (newUser: User, newToken: string) => {
@@ -34,6 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(newToken);
     localStorage.setItem('@CortexAI:token', newToken);
     localStorage.setItem('@CortexAI:user', JSON.stringify(newUser));
+    localStorage.setItem('@CortexAI:uid', newUser.id);
   };
 
   const logout = () => {
@@ -41,6 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(null);
     localStorage.removeItem('@CortexAI:token');
     localStorage.removeItem('@CortexAI:user');
+    localStorage.removeItem('@CortexAI:uid');
   };
 
   const updateUserProfile = (updates: Partial<User>) => {
