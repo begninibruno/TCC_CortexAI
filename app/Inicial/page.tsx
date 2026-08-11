@@ -1,85 +1,186 @@
-
-import { 
-  Check, 
-  ChevronDown, 
-  Cpu, 
-  MessageSquare, 
-  ShieldCheck, 
-  Zap, 
-  ArrowRight, 
+﻿import {
+  ArrowRight,
+  Check,
+  ChevronDown,
+  Cpu,
+  MessageSquare,
+  ShieldCheck,
+  Zap,
 } from 'lucide-react';
-import Link from "next/link";
+import Link from 'next/link';
+
+type StepCardProps = {
+  number: string;
+  title: string;
+  desc: string;
+};
+
+type PriceCardProps = {
+  tier: string;
+  price: string;
+  features: string[];
+  featured?: boolean;
+};
+
+type FaqItemProps = {
+  q: string;
+  a: string;
+};
+
+const benefits = [
+  { icon: Cpu, title: 'IA local', description: 'Atendimento rápido e inteligente.' },
+  { icon: ShieldCheck, title: 'Segurança', description: 'Conectividade e controle de acesso.' },
+  { icon: Zap, title: 'Performance', description: 'Resposta imediata para clientes.' },
+];
+
+const steps = [
+  {
+    number: '01',
+    title: 'Plug & Play',
+    desc: 'Conecte o dispositivo na tomada e no Wi-Fi da sua loja.',
+  },
+  {
+    number: '02',
+    title: 'Alimente a IA',
+    desc: 'Suba seu catálogo de produtos e informações da loja no software.',
+  },
+  {
+    number: '03',
+    title: 'Venda mais',
+    desc: 'Seu assistente começa a interagir com você em tempo real.',
+  },
+];
+
+const plans = [
+  {
+    tier: 'Starter',
+    price: '59,90',
+    features: ['Controle de estoque', 'Gestão de clientes', 'Relatórios mensais'],
+  },
+  {
+    tier: 'Pro',
+    price: '99,90',
+    featured: true,
+    features: ['Tudo do plano Starter', '1 dispositivo MiniCortex AI', 'IA personalizada', 'Suporte'],
+  },
+  {
+    tier: 'Enterprise',
+    price: '199,90',
+    features: ['Tudo do plano Pro', '1 dispositivo Cortex AI', 'API de dados', 'Suporte VIP'],
+  },
+];
+
+const faqs = [
+  {
+    q: 'Preciso de internet para funcionar?',
+    a: 'Sim, o assistente utiliza processamento em nuvem e precisa de uma conexão Wi-Fi estável.',
+  },
+  {
+    q: 'A IA aprende sozinha sobre minha loja?',
+    a: 'Você fornece a base de dados inicial e a IA otimiza as respostas conforme o seu comando.',
+  },
+  {
+    q: 'O hardware tem garantia?',
+    a: 'Sim, fornecemos garantia total e substituição imediata em planos Pro e Enterprise.',
+  },
+];
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0A1A2F] to-[#1C3B5E] text-white selection:bg-indigo-100">
-      
-      {/* --- NAVBAR --- */}
-      <nav className="fixed w-full z-50 bg-[#0A1A2F]/80 backdrop-blur-md border-b border-white/10">
-        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-18 h-18 bg-blue- rounded-lg flex items-center justify-center">
-              <img src="logo.png"/>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 text-slate-950 selection:bg-blue-100 dark:from-slate-950 dark:via-slate-900 dark:to-[#020617] dark:text-white">
+      <nav className="fixed top-0 w-full z-50 border-b border-slate-200/60 bg-white/85 backdrop-blur-md text-slate-950 dark:border-white/10 dark:bg-[#0A1A2F]/90 dark:text-white">
+        <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-6">
+          <div className="flex items-center gap-4">
+            <div className="flex h-16 w-16 items-center justify-center rounded-[1.5rem] border border-slate-200/80 bg-slate-100/90 shadow-2xl shadow-slate-900/10 ring-1 ring-slate-900/10 dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-none">
+              <img src="/logo.png" alt="Cortex AI" className="h-10 w-10 object-contain" />
             </div>
-            <span className="font-black text-xl tracking-tighter">Cortex AI</span>
+            <div>
+              <div className="text-sm font-semibold uppercase tracking-[0.35em] text-slate-600 dark:text-slate-300">
+                CortexAI
+              </div>
+            </div>
           </div>
-          
-          <div className="hidden md:flex items-center gap-8 text-sm font-bold text-white/80">
-            <a href="#como-funciona" className="hover:text-blue-300 transition-colors">Como Funciona</a>
-            <a href="#planos" className="hover:text-blue-300 transition-colors">Planos</a>
-            <a href="#sobre" className="hover:text-blue-300 transition-colors">Sobre Nós</a>
+
+          <div className="hidden items-center gap-8 text-sm font-bold text-slate-600 md:flex dark:text-slate-300">
+            <a href="#como-funciona" className="transition-colors hover:text-blue-500 dark:hover:text-blue-300">
+              Como Funciona
+            </a>
+            <a href="#planos" className="transition-colors hover:text-blue-500 dark:hover:text-blue-300">
+              Planos
+            </a>
+            <a href="#sobre" className="transition-colors hover:text-blue-500 dark:hover:text-blue-300">
+              Sobre Nós
+            </a>
           </div>
 
           <div className="flex items-center gap-4">
-            
-           <Link href="/Login">
-            <span className="text-sm font-bold text-white/80 hover:text-blue-300 cursor-pointer">
-            Entrar
-            </span>
+            <Link
+              href="/Login"
+              className="text-sm font-bold text-slate-700 transition-colors hover:text-blue-500 dark:text-slate-200 dark:hover:text-blue-300"
+            >
+              Entrar
             </Link>
-            <Link href="/Cadastro">
-            <span className="bg-blue-500 text-white px-5 py-2.5 rounded-full text-sm font-bold hover:bg-blue-600 hover:shadow-lg transition-all active:scale-95">
+            <Link
+              href="/Cadastro"
+              className="rounded-full bg-blue-500 px-5 py-2.5 text-sm font-bold text-white transition-all hover:bg-blue-600 hover:shadow-lg active:scale-95"
+            >
               Começar Agora
-            </span>
             </Link>
           </div>
         </div>
       </nav>
 
-      {/* --- HERO SECTION --- */}
-      <section className="pt-40 pb-20 px-6">
-        <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-12 items-center">
+      <section className="px-6 pb-20 pt-40">
+        <div className="mx-auto grid max-w-7xl items-center gap-12 lg:grid-cols-2">
           <div>
-            <span className="inline-block px-4 py-1.5 bg-blue-500/20 text-blue-300 rounded-full text-xs font-black uppercase tracking-widest mb-6">
+            <span className="mb-6 inline-block rounded-full bg-blue-500/10 px-4 py-1.5 text-xs font-black uppercase tracking-widest text-blue-600 dark:bg-blue-400/10 dark:text-blue-300">
               O Futuro do Atendimento Físico
             </span>
-            <h1 className="text-5xl md:text-7xl font-black tracking-tight leading-[1.1] mb-6">
-              Sua loja agora tem uma <span className="text-blue-400">Voz Inteligente.</span>
+            <h1 className="mb-6 text-5xl font-black leading-[1.1] tracking-tight text-slate-950 md:text-7xl dark:text-white">
+              Sua loja agora tem uma <span className="text-blue-600 dark:text-blue-400">Voz Inteligente.</span>
             </h1>
-            <p className="text-lg text-white/60 mb-8 max-w-lg leading-relaxed font-medium">
-              Um assistente virtual físico que obedece os seus comandos.
+            <p className="mb-8 max-w-lg text-lg font-medium leading-relaxed text-slate-600 dark:text-slate-300">
+              Um assistente virtual físico que obedece os seus comandos e transforma a experiência do cliente.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <button className="bg-blue-500 text-white px-8 py-4 rounded-2xl font-black text-lg shadow-xl shadow-blue-500/20 hover:bg-blue-600 transition-all flex items-center justify-center gap-2 group">
-                Ver Planos <ArrowRight className="group-hover:translate-x-1 transition-transform" />
-              </button>
-              <button className="bg-white/10 border-2 border-white/20 px-8 py-4 rounded-2xl font-black text-lg hover:bg-white/20 transition-all">
+            <div className="flex flex-col gap-4 sm:flex-row">
+              <Link
+                href="#planos"
+                className="group flex items-center justify-center gap-2 rounded-2xl bg-blue-500 px-8 py-4 text-lg font-black text-white shadow-xl shadow-blue-500/20 transition-all hover:bg-blue-600"
+              >
+                Ver Planos <ArrowRight className="transition-transform group-hover:translate-x-1" />
+              </Link>
+              <a
+                href="#como-funciona"
+                className="rounded-2xl bg-slate-950 px-8 py-4 text-lg font-black text-white shadow-lg shadow-slate-900/10 transition-all hover:bg-slate-900 dark:bg-white/10 dark:text-white dark:hover:bg-white/20"
+              >
                 Falar com consultor
-              </button>
+              </a>
+            </div>
+
+            <div className="mt-8 grid gap-4 sm:grid-cols-3">
+              {benefits.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <div key={item.title} className="rounded-2xl border border-slate-200/70 bg-white/80 p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900/80">
+                    <Icon className="mb-2 text-blue-500" size={20} />
+                    <h3 className="text-sm font-black text-slate-950 dark:text-white">{item.title}</h3>
+                    <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{item.description}</p>
+                  </div>
+                );
+              })}
             </div>
           </div>
+
           <div className="relative">
-            {/* Representação visual do totem/assistente */}
-            <div className="aspect-square bg-gradient-to-br from-[#1A4B6D] to-[#0F2A40] rounded-[3rem] relative overflow-hidden border-8 border-white/10 shadow-2xl flex items-center justify-center">
-              <div className="w-48 h-80 bg-white/10 rounded-3xl border-4 border-white/20 shadow-2xl flex flex-col items-center justify-center p-6 text-center">
-                <div className="w-12 h-12 bg-blue-500 rounded-full animate-pulse mb-4 shadow-[0_0_30px_rgba(59,130,246,0.6)]"></div>
-                <div className="space-y-2 w-full">
-                  <div className="h-2 bg-white/20 rounded w-3/4 mx-auto"></div>
-                  <div className="h-2 bg-white/20 rounded w-1/2 mx-auto"></div>
+            <div className="relative flex aspect-square items-center justify-center overflow-hidden rounded-[3rem] border-8 border-slate-200/10 bg-gradient-to-br from-slate-900 via-slate-950 to-[#020617] shadow-2xl dark:border-white/10">
+              <div className="flex h-80 w-48 flex-col items-center justify-center rounded-3xl border-4 border-white/15 bg-white/10 p-6 text-center shadow-2xl dark:border-slate-700 dark:bg-slate-950/80">
+                <div className="mb-4 h-12 w-12 animate-pulse rounded-full bg-blue-500 shadow-[0_0_30px_rgba(59,130,246,0.6)]"></div>
+                <div className="w-full space-y-2">
+                  <div className="mx-auto h-2 w-3/4 rounded bg-white/20"></div>
+                  <div className="mx-auto h-2 w-1/2 rounded bg-white/20"></div>
                 </div>
               </div>
-              {/* Floating tags */}
-              <div className="absolute top-10 right-10 bg-white/10 p-4 rounded-2xl shadow-xl border border-white/20 animate-bounce">
+              <div className="absolute right-10 top-10 rounded-2xl border border-white/20 bg-white/10 p-4 shadow-xl">
                 <MessageSquare className="text-blue-300" />
               </div>
             </div>
@@ -87,123 +188,155 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* --- COMO FUNCIONA --- */}
-      <section id="como-funciona" className="py-24 px-6">
-        <div className="max-w-7xl mx-auto px-6">
-          <h2 className="text-3xl font-black text-center mb-16">Instalação em 3 Passos</h2>
-          <div className="grid md:grid-cols-3 gap-8">
-            <StepCard number="01" title="Plug & Play" desc="Conecte o dispositivo na tomada e no Wi-Fi da sua loja." />
-            <StepCard number="02" title="Alimente a IA" desc="Suba seu catálogo de produtos e informações da loja no software." />
-            <StepCard number="03" title="Venda mais" desc="Seu assistente começa a interagir com você em tempo real." />
+      <section id="como-funciona" className="px-6 py-24">
+        <div className="mx-auto max-w-7xl px-6">
+          <h2 className="mb-16 text-center text-3xl font-black text-slate-950 dark:text-white">
+            Instalação em 3 Passos
+          </h2>
+          <div className="grid gap-8 md:grid-cols-3">
+            {steps.map((step) => (
+              <StepCard key={step.number} number={step.number} title={step.title} desc={step.desc} />
+            ))}
           </div>
         </div>
       </section>
 
-      {/* --- SOBRE NÓS / MISSÃO --- */}
-      <section id="sobre" className="py-24 px-6">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-sm font-black text-blue-400 uppercase tracking-widest mb-4">Nossa Missão</h2>
-          <p className="text-3xl font-bold leading-tight text-white/80 italic">
-            "Queremos democratizar a inteligência artificial de ponta para o varejo físico, transformando cada loja em um ambiente interativo e eficiente."
+      <section id="sobre" className="px-6 py-24">
+        <div className="mx-auto max-w-4xl text-center">
+          <h2 className="mb-4 text-sm font-black uppercase tracking-widest text-blue-600 dark:text-blue-400">
+            Nossa Missão
+          </h2>
+          <p className="text-3xl font-bold leading-tight italic text-slate-700/90 dark:text-white/80">
+            “Queremos democratizar a inteligência artificial de ponta para o varejo físico, transformando cada loja em um ambiente interativo e eficiente.”
           </p>
-          <div className="mt-12 grid grid-cols-2 md:grid-cols-4 gap-8">
-            <div className="text-center">
-              <p className="text-4xl font-black text-white">500+</p>
-              <p className="text-xs font-bold text-white/40 uppercase mt-2">Lojas Ativas</p>
+          <div className="mt-12 grid grid-cols-2 gap-6 md:grid-cols-4">
+            <div className="rounded-3xl border border-slate-200/70 bg-slate-100/80 p-8 text-center dark:border-slate-700 dark:bg-slate-900/80">
+              <p className="text-4xl font-black text-slate-950 dark:text-white">500+</p>
+              <p className="mt-2 text-xs font-bold uppercase text-slate-500 dark:text-slate-400">Lojas Ativas</p>
             </div>
-            <div className="text-center">
-              <p className="text-4xl font-black text-white">1M+</p>
-              <p className="text-xs font-bold text-white/40 uppercase mt-2">Interações/mês</p>
+            <div className="rounded-3xl border border-slate-200/70 bg-slate-100/80 p-8 text-center dark:border-slate-700 dark:bg-slate-900/80">
+              <p className="text-4xl font-black text-slate-950 dark:text-white">1M+</p>
+              <p className="mt-2 text-xs font-bold uppercase text-slate-500 dark:text-slate-400">Interações/mês</p>
             </div>
-            <div className="text-center">
-              <p className="text-4xl font-black text-white">98%</p>
-              <p className="text-xs font-bold text-white/40 uppercase mt-2">Satisfação</p>
+            <div className="rounded-3xl border border-slate-200/70 bg-slate-100/80 p-8 text-center dark:border-slate-700 dark:bg-slate-900/80">
+              <p className="text-4xl font-black text-slate-950 dark:text-white">98%</p>
+              <p className="mt-2 text-xs font-bold uppercase text-slate-500 dark:text-slate-400">Satisfação</p>
             </div>
-            <div className="text-center">
-              <p className="text-4xl font-black text-white">24/7</p>
-              <p className="text-xs font-bold text-white/40 uppercase mt-2">Suporte</p>
+            <div className="rounded-3xl border border-slate-200/70 bg-slate-100/80 p-8 text-center dark:border-slate-700 dark:bg-slate-900/80">
+              <p className="text-4xl font-black text-slate-950 dark:text-white">24/7</p>
+              <p className="mt-2 text-xs font-bold uppercase text-slate-500 dark:text-slate-400">Suporte</p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* --- PLANOS --- */}
-      <section id="planos" className="py-24 px-6">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-black text-white mb-4">Planos que cabem no seu negócio</h2>
-            <p className="text-white/60">Escolha o nível de inteligência da sua loja.</p>
+      <section id="planos" className="px-6 py-24">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="mb-16 text-center">
+            <h2 className="mb-4 text-4xl font-black text-slate-950 dark:text-white">
+              Planos que cabem no seu negócio
+            </h2>
+            <p className="text-slate-600 dark:text-slate-300">Escolha o nível de inteligência da sua loja.</p>
           </div>
-          <div className="grid md:grid-cols-3 gap-8">
-            <PriceCard tier="Starter" price="59,90" features={['Controle de estoque', 'Gestão de clientes', 'Relatórios Mensais']} />
-            <PriceCard tier="Pro" price="99,90" featured={true} features={['Tudo do plano Starter+','1 Dispositivo MiniCortex AI', 'IA Personalizada','Suporte']} />
-            <PriceCard tier="Enterprise" price="199,90" features={['Tudo do plano Pro+','1 Dispositivo Cortex AI', 'API de Dados', 'Suporte VIP']} />
+          <div className="grid gap-8 md:grid-cols-3">
+            {plans.map((plan) => (
+              <PriceCard
+                key={plan.tier}
+                tier={plan.tier}
+                price={plan.price}
+                featured={plan.featured}
+                features={plan.features}
+              />
+            ))}
           </div>
         </div>
       </section>
 
-      {/* --- FAQ --- */}
-      <section className="py-24 px-6">
-        <div className="max-w-3xl mx-auto">
-          <h2 className="text-3xl font-black mb-12 text-center text-white">Dúvidas Frequentes</h2>
+      <section className="px-6 py-24">
+        <div className="mx-auto max-w-3xl">
+          <h2 className="mb-12 text-center text-3xl font-black text-slate-950 dark:text-white">
+            Dúvidas Frequentes
+          </h2>
           <div className="space-y-4">
-            <FaqItem q="Preciso de internet para funcionar?" a="Sim, o assistente utiliza processamento em nuvem e precisa de uma conexão Wi-Fi estável." />
-            <FaqItem q="A IA aprende sozinha sobre minha loja?" a="Você fornece a base de dados inicial e a IA otimiza as respostas conforme seu comando." />
-            <FaqItem q="O hardware tem garantia?" a="Sim, fornecemos garantia total e substituição imediata em planos Pro e Enterprise." />
+            {faqs.map((faq) => (
+              <FaqItem key={faq.q} q={faq.q} a={faq.a} />
+            ))}
           </div>
         </div>
       </section>
 
-      {/* --- FOOTER --- */}
-      <footer className="py-12 border-t border-white/10 text-center">
-        <p className="text-sm text-white/40 font-medium">© 2026 CORTEX.AI - Todos os direitos reservados.</p>
+      <footer className="border-t border-slate-200/60 py-12 text-center dark:border-white/10">
+        <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+          © 2026 CORTEX.AI - Todos os direitos reservados.
+        </p>
       </footer>
     </div>
   );
 }
 
-// --- SUBCOMPONENTES AUXILIARES ---
-
-function StepCard({ number, title, desc }: { number: string, title: string, desc: string }) {
+function StepCard({ number, title, desc }: StepCardProps) {
   return (
-    <div className="p-8 bg-white/5 backdrop-blur-sm rounded-3xl shadow-sm border border-white/10 hover:border-blue-400/30 transition-colors">
-      <span className="text-4xl font-black text-white/20 mb-4 block">{number}</span>
-      <h3 className="text-xl font-black mb-2 text-white">{title}</h3>
-      <p className="text-white/60 text-sm leading-relaxed font-medium">{desc}</p>
+    <div className="rounded-3xl border border-slate-200/70 bg-slate-100/80 p-8 shadow-sm transition-colors hover:border-blue-400/30 dark:border-slate-700 dark:bg-slate-900/80">
+      <span className="mb-4 block text-4xl font-black text-slate-400 dark:text-white/20">{number}</span>
+      <h3 className="mb-2 text-xl font-black text-slate-950 dark:text-white">{title}</h3>
+      <p className="text-sm font-medium leading-relaxed text-slate-600 dark:text-slate-400">{desc}</p>
     </div>
   );
 }
 
-function PriceCard({ tier, price, features, featured = false }: any) {
+function PriceCard({ tier, price, features, featured = false }: PriceCardProps) {
   return (
-    <div className={`p-8 rounded-[2rem] border ${featured ? 'bg-blue-500 border-blue-400 scale-105 shadow-2xl shadow-blue-500/20' : 'bg-white/5 backdrop-blur-sm border-white/10'} transition-all`}>
-      <h3 className="text-xl font-black mb-2 text-white">{tier}</h3>
+    <div
+      className={`rounded-[2rem] border p-8 transition-all ${
+        featured
+          ? 'scale-105 border-blue-400 bg-blue-500 shadow-2xl shadow-blue-500/20'
+          : 'border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900'
+      }`}
+    >
+      <h3 className={`mb-2 text-xl font-black ${featured ? 'text-white' : 'text-slate-950 dark:text-white'}`}>
+        {tier}
+      </h3>
       <div className="mb-6">
-        <span className="text-4xl font-black text-white">R${price}</span>
-        {price !== 'Sob Consulta' && <span className="text-sm text-white/40 font-bold">/mês</span>}
+        <span className={`text-4xl font-black ${featured ? 'text-white' : 'text-slate-950 dark:text-white'}`}>
+          R${price}
+        </span>
+        {price !== 'Sob Consulta' && (
+          <span className={`text-sm font-bold ${featured ? 'text-white/80' : 'text-slate-500 dark:text-slate-400'}`}>
+            /mês
+          </span>
+        )}
       </div>
-      <ul className="space-y-4 mb-8">
-        {features.map((f: string) => (
-          <li key={f} className="flex items-center gap-2 text-sm font-medium text-white/80">
-            <Check size={16} className={featured ? 'text-white' : 'text-blue-400'} /> {f}
+      <ul className="mb-8 space-y-4">
+        {features.map((feature) => (
+          <li
+            key={feature}
+            className={`flex items-center gap-2 text-sm font-medium ${featured ? 'text-white/80' : 'text-slate-600 dark:text-slate-400'}`}
+          >
+            <Check size={16} className={featured ? 'text-white' : 'text-blue-400'} /> {feature}
           </li>
         ))}
       </ul>
-      <button className={`w-full py-4 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${featured ? 'bg-white text-blue-600 hover:bg-blue-50' : 'bg-white/10 text-white hover:bg-white/20 border border-white/20'}`}>
+      <button
+        className={`w-full rounded-xl py-4 text-xs font-black uppercase tracking-widest transition-all ${
+          featured
+            ? 'bg-white text-blue-600 hover:bg-blue-50'
+            : 'border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'
+        }`}
+      >
         Assinar Agora
       </button>
     </div>
   );
 }
 
-function FaqItem({ q, a }: { q: string, a: string }) {
+function FaqItem({ q, a }: FaqItemProps) {
   return (
-    <div className="p-6 bg-white/5 backdrop-blur-sm rounded-2xl group cursor-pointer hover:bg-white/10 border border-transparent hover:border-white/20 transition-all">
-      <div className="flex justify-between items-center">
-        <h4 className="font-bold text-white">{q}</h4>
-        <ChevronDown size={18} className="text-white/40 group-hover:rotate-180 transition-transform" />
+    <div className="rounded-2xl border border-slate-200/70 bg-white/80 p-6 shadow-sm transition-all hover:border-blue-400/30 dark:border-slate-700 dark:bg-slate-900/80">
+      <div className="flex items-center justify-between">
+        <h4 className="font-bold text-slate-950 dark:text-white">{q}</h4>
+        <ChevronDown size={18} className="text-slate-400 transition-transform group-hover:rotate-180" />
       </div>
-      <p className="mt-4 text-sm text-white/60 leading-relaxed font-medium">{a}</p>
+      <p className="mt-4 text-sm font-medium leading-relaxed text-slate-600 dark:text-slate-400">{a}</p>
     </div>
   );
 }

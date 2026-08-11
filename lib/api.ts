@@ -14,15 +14,16 @@ const BASE_URL = '';
 
 // ═══════════════ Auth helper ═══════════════
 
-function withToken(path: string, options?: RequestInit): RequestInit {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('cortexai_token') : null;
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
+function withToken(options?: RequestInit): RequestInit {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('@CortexAI:token') : null;
+  const headers = new Headers(options?.headers);
+  if (!headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
+  if (token) headers.set('Authorization', `Bearer ${token}`);
   return { ...options, headers };
 }
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, withToken(path, options));
+  const res = await fetch(`${BASE_URL}${path}`, withToken(options));
   if (!res.ok) {
     const text = await res.text();
     throw new Error(text || `HTTP ${res.status}`);
@@ -38,6 +39,12 @@ function getUserUid(): string {
   }
 
   return user.uid;
+}
+
+function removeUndefinedFields(data: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(data).filter(([, value]) => value !== undefined)
+  );
 }
 
 // ═══════════════ Produtos ═══════════════
@@ -120,18 +127,19 @@ export async function createCategoria(
   data: Record<string, unknown>
 ): Promise<Categoria> {
   const uid = getUserUid();
+  const categoria = removeUndefinedFields(data);
 
   const docRef = await addDoc(
     collection(db, 'empresas', uid, 'categorias'),
     {
-      ...data,
+      ...categoria,
       criadoEm: new Date().toISOString(),
     }
   );
 
   return {
     id: docRef.id,
-    ...data,
+    ...categoria,
   } as Categoria;
 }
 
@@ -147,7 +155,7 @@ export async function updateCategoria(
   await updateDoc(
     doc(db, 'empresas', uid, 'categorias', String(data.id)),
     {
-      ...data,
+      ...removeUndefinedFields(data),
       atualizadoEm: new Date().toISOString(),
     }
   );
@@ -229,19 +237,32 @@ export async function getRelatorioVendasPorDia(inicio: string, fim: string) {
 
 // ═══════════════ Clientes ═══════════════
 export async function getClientes(): Promise<Cliente[]> {
-  return request<Cliente[]>('/api/clientes');
+  const uid = getUserUid();
+  const snapshot = await getDocs(collection(db, 'empresas', uid, 'clientes'));
+  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() })) as Cliente[];
 }
 
-export async function createCliente(data: Record<string, unknown>) {
-  return request('/api/cliente', { method: 'POST', body: JSON.stringify(data) });
+export async function createCliente(data: Omit<Cliente, 'id' | 'criadoEm'>) {
+  const uid = getUserUid();
+  const docRef = await addDoc(collection(db, 'empresas', uid, 'clientes'), {
+    ...removeUndefinedFields(data),
+    criadoEm: new Date().toISOString(),
+    atualizadoEm: new Date().toISOString(),
+  });
+  return { id: docRef.id, ...data, criadoEm: new Date().toISOString() } as Cliente;
 }
 
-export async function updateCliente(id: number, data: Record<string, unknown>) {
-  return request('/api/cliente', { method: 'PUT', body: JSON.stringify({ id, ...data }) });
+export async function updateCliente(id: string, data: Omit<Cliente, 'id' | 'criadoEm'>) {
+  const uid = getUserUid();
+  await updateDoc(doc(db, 'empresas', uid, 'clientes', id), {
+      ...removeUndefinedFields(data),
+    atualizadoEm: new Date().toISOString(),
+  });
 }
 
-export async function deleteCliente(id: number): Promise<void> {
-  return request<void>('/api/cliente', { method: 'DELETE', body: JSON.stringify({ id }) });
+export async function deleteCliente(id: string): Promise<void> {
+  const uid = getUserUid();
+  await deleteDoc(doc(db, 'empresas', uid, 'clientes', id));
 }
 
 // ═══════════════ Cupons ═══════════════
@@ -312,5 +333,17 @@ export async function getEstoqueBaixo(): Promise<{ produtos: Array<{ id: number;
 }
 
 export async function getEstoqueResumo(): Promise<{ totalItens: number; valorTotalCusto: number; produtosCadastrados: number; semEstoque: number }> {
-  return request('/api/relatorios/estoque-resumo');
+  const produtos = await getProdutos();
+  return produtos.reduce(
+    (resumo, produto) => {
+      const estoque = Number(produto.estoque) || 0;
+      const custo = Number(produto.precoCusto ?? produto.preco) || 0;
+      resumo.totalItens += estoque;
+      resumo.valorTotalCusto += estoque * custo;
+      resumo.produtosCadastrados += 1;
+      if (estoque <= 0) resumo.semEstoque += 1;
+      return resumo;
+    },
+    { totalItens: 0, valorTotalCusto: 0, produtosCadastrados: 0, semEstoque: 0 }
+  );
 }

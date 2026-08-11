@@ -81,7 +81,7 @@ export interface EspStatus {
 }
 
 export interface Cliente {
-  id: number;
+  id: string;
   nome: string;
   cpf?: string | null;
   email?: string | null;

@@ -15,17 +15,17 @@ import LoadingSpinner from '@/components/LoadingSpinner';
 
 const LS_KEY = 'cortex_produto_extra';
 
-function loadExtras(): Record<number, Partial<Produto>> {
+function loadExtras(): Record<string, Partial<Produto>> {
   try { return JSON.parse(localStorage.getItem(LS_KEY) || '{}'); } catch { return {}; }
 }
 
-function saveExtra(id: number, data: Partial<Produto>) {
+function saveExtra(id: string, data: Partial<Produto>) {
   const all = loadExtras();
   all[id] = { ...all[id], ...data };
   localStorage.setItem(LS_KEY, JSON.stringify(all));
 }
 
-function deleteExtra(id: number) {
+function deleteExtra(id: string) {
   const all = loadExtras();
   delete all[id];
   localStorage.setItem(LS_KEY, JSON.stringify(all));
@@ -195,7 +195,7 @@ export default function EstoquePage() {
 
   async function handleDelete() {
     if (!deleteTarget) return; setDeleting(true);
-    try { await deleteProduto(deleteTarget.nome); deleteExtra(deleteTarget.id); addToast('success', 'Produto excluído!'); setDeleteTarget(null); load(); }
+    try { await deleteProduto(deleteTarget.id); deleteExtra(deleteTarget.id); addToast('success', 'Produto excluído!'); setDeleteTarget(null); load(); }
     catch { addToast('error', 'Erro ao excluir produto'); }
     finally { setDeleting(false); }
   }

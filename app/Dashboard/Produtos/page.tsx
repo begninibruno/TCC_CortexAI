@@ -109,7 +109,7 @@ export default function ProdutosPage() {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      await deleteProduto(deleteTarget.nome);
+      await deleteProduto(deleteTarget.id);
       addToast('success', 'Produto excluído');
       setDeleteTarget(null);
       await loadData();

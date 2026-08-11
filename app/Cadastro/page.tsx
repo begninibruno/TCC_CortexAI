@@ -1,6 +1,6 @@
 // app/cadastro/page.tsx
 'use client';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useState, FormEvent } from 'react';
 
 import {
@@ -8,9 +8,7 @@ import {
   DollarSign,
   Users,
   Target,
-  ArrowRight,
   CheckCircle,
-  Brain,
   Store,
   Phone,
   Mail,
@@ -20,11 +18,7 @@ import {
   FileText
 } from 'lucide-react';
 
-import { auth, db } from '@/src/firebase';
-
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-
-import { doc, setDoc } from 'firebase/firestore';
+import Modal from '@/components/Modal';
 
 type FormDataType = {
   empresa: string;
@@ -36,10 +30,9 @@ type FormDataType = {
   confirmarSenha: string;
 };
 
-type ErrorsType = Partial<Record<keyof FormDataType, string>>;
+type ErrorsType = Partial<Record<keyof FormDataType, string>> & { geral?: string };
 
 export default function PaginaCadastro() {
-  const router = useRouter();
   const [etapa, setEtapa] = useState(1);
   const [formData, setFormData] = useState<FormDataType>({
     empresa: '',
@@ -52,8 +45,7 @@ export default function PaginaCadastro() {
   });
   const [erros, setErros] = useState<ErrorsType>({} as ErrorsType);
   const [carregando, setCarregando] = useState(false);
-  const [cadastroSucesso, setCadastroSucesso] = useState(false);
-
+  const [modalOpen, setModalOpen] = useState<'terms' | 'privacy' | null>(null);
 
 
 
@@ -110,6 +102,7 @@ export default function PaginaCadastro() {
 
     try {
       // Usar a nova API de cadastro
+      
       const response = await fetch('/api/cadastro', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -128,7 +121,7 @@ export default function PaginaCadastro() {
         throw new Error(errorData.erro || 'Erro ao cadastrar');
       }
 
-      const { token, usuario } = await response.json();
+      const { token } = await response.json();
 
       // Usar Firebase para confirmar o login
       const { signInWithCustomToken } = await import('firebase/auth');
@@ -136,16 +129,15 @@ export default function PaginaCadastro() {
 
       await signInWithCustomToken(auth, token);
 
-      setCadastroSucesso(true);
       console.log('Cadastro realizado com sucesso');
 
       setTimeout(() => {
         window.location.href = '/Dashboard/Produtos';
       }, 1500);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Cadastro falhou:', error);
       setErros({
-        geral: error.message || 'Erro ao cadastrar',
+        geral: error instanceof Error ? error.message : 'Erro ao cadastrar',
       });
     } finally {
       setCarregando(false);
@@ -166,104 +158,106 @@ export default function PaginaCadastro() {
   
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0A1A2F] to-[#1C3B5E] flex">
-      {/* Lado esquerdo - Conteúdo */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-[#0F2A40] to-[#1A4B6D] p-12 flex-col justify-between relative overflow-hidden">
+    <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 flex">
+      {/* Left Side */}
+      <div className="hidden lg:flex lg:w-1/2 relative flex-col justify-between p-12">
         {/* Elementos decorativos */}
         <div className="absolute top-0 left-0 w-full h-full">
-          <div className="absolute top-10 left-10 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl"></div>
-          <div className="absolute bottom-10 right-10 w-60 h-60 bg-purple-500/10 rounded-full blur-3xl"></div>
+          <div className="absolute top-10 left-10 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl dark:bg-blue-400/10"></div>
+          <div className="absolute bottom-10 right-10 w-60 h-60 bg-slate-900/10 rounded-full blur-3xl dark:bg-slate-700/10"></div>
         </div>
 
-        {/* Logo */}
-        <div className="relative">
-          <div className="flex items-center gap-2">
-            <Brain className="w-8 h-8 text-blue-300" />
-            <span className="text-2xl font-bold text-white">CortexAI</span>
+        <div>
+          <div className="flex items-center gap-4 mb-12">
+            <div className="flex h-16 w-16 items-center justify-center rounded-[1.5rem] bg-slate-100/80 border border-slate-200/80 shadow-2xl shadow-slate-900/10 ring-1 ring-slate-900/10 dark:bg-slate-900/80 dark:border-slate-700 dark:shadow-none">
+              <img src="/logo.png" alt="Cortex AI" className="h-10 w-10 object-contain" />
+            </div>
+            <div>
+              <div className="text-base uppercase tracking-[0.35em] font-semibold text-slate-950 dark:text-white">CortexAI</div>
+              <div className="text-sm text-slate-500 dark:text-slate-400">Cadastro de empresa</div>
+            </div>
+          </div>
+
+          <h2 className="text-5xl font-bold mb-6">
+            Crie sua conta<br />
+            <span className="text-blue-400">e entre no controle</span>
+          </h2>
+          <p className="text-lg text-slate-500 dark:text-slate-400 mb-12 leading-relaxed">
+            Cadastre sua empresa e tenha acesso a vendas, estoque e clientes em um só painel.
+          </p>
+
+          <div className="bg-slate-100/80 backdrop-blur border border-slate-200/70 rounded-lg p-6 dark:bg-slate-900/80 dark:border-slate-700">
+            <div className="flex items-center gap-3 mb-2">
+              <Mail className="w-5 h-5 text-blue-600 dark:text-blue-300" />
+              <span className="font-semibold text-slate-950 dark:text-white">Cadastro seguro</span>
+            </div>
+            <p className="text-sm text-slate-500 dark:text-slate-400">Seus dados ficam protegidos e você entra no sistema com tranquilidade.</p>
           </div>
         </div>
 
-        {/* Conteúdo principal */}
-        <div className="relative space-y-8">
-          <h1 className="text-4xl font-bold text-white leading-tight">
-            Sua gestão financeira<br />
-            <span className="text-blue-300">com inteligência artificial</span>
-          </h1>
-
-          <p className="text-blue-100 text-lg">
-            Mais de 2.000 microempreendedores já estão usando o CortexAI<br />
-            para organizar suas finanças e aumentar as vendas.
-          </p>
-
-          {/* Benefícios */}
-          <div className="grid grid-cols-2 gap-4">
+        <div className="bg-slate-100/80 backdrop-blur-sm rounded-3xl p-6 border border-slate-200/60 dark:bg-slate-900/80 dark:border-slate-700">
+          <h3 className="text-xl font-semibold text-slate-950 dark:text-white mb-4">O que você ganha</h3>
+          <div className="grid gap-3">
             {[
-              { icone: TrendingUp, texto: 'Aumento médio de 47% nas vendas' },
-              { icone: DollarSign, texto: 'Redução de 30% em custos' },
-              { icone: Users, texto: '+1.500 clientes ativos' },
-              { icone: Target, texto: 'Metas personalizadas' }
+              { icone: TrendingUp, texto: 'Mais vendas com métricas' },
+              { icone: DollarSign, texto: 'Controle financeiro fácil' },
+              { icone: Users, texto: 'Clientes organizados' },
+              { icone: Target, texto: 'Metas inteligentes' }
             ].map((item, idx) => (
-              <div key={idx} className="flex items-center gap-2">
-                <item.icone className="w-5 h-5 text-blue-300" />
-                <span className="text-sm text-white">{item.texto}</span>
+              <div key={idx} className="flex items-center gap-3">
+                <item.icone className="w-5 h-5 text-blue-400" />
+                <span className="text-sm text-slate-600 dark:text-slate-300">{item.texto}</span>
               </div>
             ))}
           </div>
-
-          {/* Depoimento */}
-          <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-            <p className="text-white/90 text-sm italic mb-3">
-              "O CortexAI transformou meu negócio. Agora sei exatamente onde estou errando e onde posso melhorar."
-            </p>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-500/20 rounded-full flex items-center justify-center text-white font-bold">
-                JM
-              </div>
-              <div>
-                <p className="text-white font-medium">João Mendes</p>
-                <p className="text-blue-200 text-xs">Mercado do João</p>
-              </div>
-            </div>
-          </div>
         </div>
 
-        {/* Footer */}
         <div className="relative text-blue-200 text-sm">
           © 2026 CortexAI. Todos os direitos reservados.
         </div>
       </div>
 
-      {/* Lado direito - Formulário */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-4 lg:p-8">
-        <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl p-8">
-          {/* Logo mobile */}
-          <div className="flex items-center gap-2 lg:hidden mb-6">
-            <Brain className="w-6 h-6 text-[#0A1A2F]" />
-            <span className="text-xl font-bold text-[#0A1A2F]">CortexAI</span>
+      {/* Right Side */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-4 sm:p-6">
+        <div className="w-full max-w-md bg-slate-100/90 dark:bg-slate-950/95 rounded-3xl p-8 shadow-2xl border border-slate-200/70 dark:border-slate-800">
+          <div className="flex items-center gap-3 lg:hidden mb-6">
+            <div className="flex h-14 w-14 items-center justify-center rounded-[1.25rem] bg-slate-100 shadow-sm border border-slate-200 dark:bg-slate-900 dark:border-slate-700">
+              <img src="/logo.png" alt="Cortex AI" className="h-8 w-8 object-contain" />
+            </div>
+            <div>
+              <div className="text-xl font-bold text-slate-950 dark:text-white">CortexAI</div>
+              <div className="text-xs text-slate-500 dark:text-slate-400">Cadastro rápido</div>
+            </div>
           </div>
 
-          {/* Cabeçalho */}
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-slate-950 dark:text-white mb-2">Vamos começar</h1>
+            <p className="text-slate-500 dark:text-slate-400">Cadastre sua empresa em três etapas rápidas.</p>
+          </div>
+
+          {erros.geral && (
+            <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+              {erros.geral}
+            </div>
+          )}
+
           <div className="mb-6">
-            <h2 className="text-2xl font-bold text-gray-800">
-              {etapa === 1 && 'Dados da empresa'}
-              {etapa === 2 && 'Informações de contato'}
-              {etapa === 3 && 'Crie sua senha'}
-            </h2>
-            <p className="text-gray-500 text-sm mt-1">
-              Etapa {etapa} de 3
-            </p>
-          </div>
-
-          {/* Progresso */}
-          <div className="flex gap-2 mb-8">
-            {[1, 2, 3].map((num) => (
-              <div
-                key={num}
-                className={`h-2 flex-1 rounded-full transition-colors ${
-                  num <= etapa ? 'bg-[#0A1A2F]' : 'bg-gray-200'
-                }`}
-              />
-            ))}
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Etapa {etapa} de 3</span>
+              <span className="text-sm text-slate-500 dark:text-slate-400">
+                {etapa === 1 ? 'Empresa' : etapa === 2 ? 'Contato' : 'Senha'}
+              </span>
+            </div>
+            <div className="flex gap-2">
+              {[1, 2, 3].map((num) => (
+                <div
+                  key={num}
+                  className={`h-2 flex-1 rounded-full transition-colors ${
+                    num <= etapa ? 'bg-blue-900 dark:bg-blue-500' : 'bg-slate-200 dark:bg-slate-800'
+                  }`}
+                />
+              ))}
+            </div>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
@@ -271,16 +265,16 @@ export default function PaginaCadastro() {
             {etapa === 1 && (
               <>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                     Nome da empresa
                   </label>
                   <div className="relative">
-                    <Store className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <Store className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 dark:text-slate-500" />
                     <input
                       type="text"
                       value={formData.empresa}
                       onChange={(e) => setFormData({...formData, empresa: e.target.value})}
-                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0A1A2F] focus:border-transparent"
+                      className="w-full pl-10 pr-3 py-2 border border-slate-300 bg-white text-slate-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
                       placeholder="Ex: Padaria da Dona Maria"
                     />
                   </div>
@@ -290,16 +284,16 @@ export default function PaginaCadastro() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                     Nome do responsável
                   </label>
                   <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 dark:text-slate-500" />
                     <input
                       type="text"
                       value={formData.responsavel}
                       onChange={(e) => setFormData({...formData, responsavel: e.target.value})}
-                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0A1A2F] focus:border-transparent"
+                      className="w-full pl-10 pr-3 py-2 border border-slate-300 bg-white text-slate-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
                       placeholder="Seu nome completo"
                     />
                   </div>
@@ -314,16 +308,16 @@ export default function PaginaCadastro() {
             {etapa === 2 && (
               <>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                     E-mail
                   </label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 dark:text-slate-500" />
                     <input
                       type="email"
                       value={formData.email}
                       onChange={(e) => setFormData({...formData, email: e.target.value})}
-                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0A1A2F] focus:border-transparent"
+                      className="w-full pl-10 pr-3 py-2 border border-slate-300 bg-white text-slate-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
                       placeholder="seu@email.com"
                     />
                   </div>
@@ -333,16 +327,16 @@ export default function PaginaCadastro() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                     Telefone / WhatsApp
                   </label>
                   <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 dark:text-slate-500" />
                     <input
                       type="tel"
                       value={formData.telefone}
                       onChange={(e) => setFormData({...formData, telefone: formatarTelefone(e.target.value)})}
-                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0A1A2F] focus:border-transparent"
+                      className="w-full pl-10 pr-3 py-2 border border-slate-300 bg-white text-slate-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
                       placeholder="(11) 99999-9999"
                       maxLength={15}
                     />
@@ -354,11 +348,11 @@ export default function PaginaCadastro() {
 
                 {/* CPF/CNPJ */}
                 <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">
+      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
         CPF / CNPJ (Apenas números)
       </label>
       <div className="relative">
-        <FileText className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+        <FileText className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 dark:text-slate-500" />
         <input
           type="text"
           value={formData.identificador}
@@ -367,7 +361,7 @@ export default function PaginaCadastro() {
             const apenasNumeros = e.target.value.replace(/\D/g, '').slice(0, 14);
             setFormData({...formData, identificador: apenasNumeros});
           }}
-          className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0A1A2F] focus:border-transparent"
+          className="w-full pl-10 pr-3 py-2 border border-slate-300 bg-white text-slate-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
           placeholder="Ex: 12345678901"
           maxLength={14} 
         />
@@ -384,16 +378,16 @@ export default function PaginaCadastro() {
             {etapa === 3 && (
               <>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                     Senha
                   </label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 dark:text-slate-500" />
                     <input
                       type="password"
                       value={formData.senha}
                       onChange={(e) => setFormData({...formData, senha: e.target.value})}
-                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0A1A2F] focus:border-transparent"
+                      className="w-full pl-10 pr-3 py-2 border border-slate-300 bg-white text-slate-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
                       placeholder="Mínimo 6 caracteres"
                     />
                   </div>
@@ -403,16 +397,16 @@ export default function PaginaCadastro() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                     Confirmar senha
                   </label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 dark:text-slate-500" />
                     <input
                       type="password"
                       value={formData.confirmarSenha}
                       onChange={(e) => setFormData({...formData, confirmarSenha: e.target.value})}
-                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0A1A2F] focus:border-transparent"
+                      className="w-full pl-10 pr-3 py-2 border border-slate-300 bg-white text-slate-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
                       placeholder="Digite novamente"
                     />
                   </div>
@@ -429,7 +423,7 @@ export default function PaginaCadastro() {
                 <button
                   type="button"
                   onClick={voltarEtapa}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="flex-1 px-4 py-2 border border-slate-300 bg-white text-slate-700 rounded-lg hover:bg-slate-50 transition-colors dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:hover:bg-slate-900"
                 >
                   Voltar
                 </button>
@@ -470,29 +464,70 @@ export default function PaginaCadastro() {
               <input
                 type="checkbox"
                 id="termos"
-                className="w-4 h-4 text-[#0A1A2F] border-gray-300 rounded focus:ring-[#0A1A2F]"
+                className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 dark:border-slate-700"
                 required
               />
-              <label htmlFor="termos" className="text-xs text-gray-600">
+              <label htmlFor="termos" className="text-xs text-slate-600 dark:text-slate-400">
                 Li e aceito os{' '}
-                <a href="#" className="text-[#0A1A2F] font-medium hover:underline">
+                <button
+                  type="button"
+                  onClick={() => setModalOpen('terms')}
+                  className="text-blue-700 dark:text-blue-300 font-medium hover:underline"
+                >
                   Termos de Uso
-                </a>{' '}
+                </button>{' '}
                 e{' '}
-                <a href="#" className="text-[#0A1A2F] font-medium hover:underline">
+                <button
+                  type="button"
+                  onClick={() => setModalOpen('privacy')}
+                  className="text-blue-700 dark:text-blue-300 font-medium hover:underline"
+                >
                   Política de Privacidade
-                </a>
+                </button>
               </label>
             </div>
 
             {/* Login */}
-            <p className="text-center text-sm text-gray-600">
+            <p className="text-center text-sm text-slate-600 dark:text-slate-400">
               Já tem uma conta?{' '}
-              <a href="/Login" className="text-[#0A1A2F] font-medium hover:underline">
+              <Link href="/Login" className="text-blue-700 dark:text-blue-300 font-medium hover:underline">
                 Fazer login
-              </a>
+              </Link>
             </p>
           </form>
+
+          <Modal
+            isOpen={modalOpen !== null}
+            onClose={() => setModalOpen(null)}
+            title={modalOpen === 'terms' ? 'Termos de Uso' : 'Política de Privacidade'}
+            size="lg"
+            footer={
+              <button
+                onClick={() => setModalOpen(null)}
+                className="px-4 py-2 rounded-xl bg-blue-700 text-white text-sm font-semibold hover:bg-blue-800 transition-all"
+              >
+                Fechar
+              </button>
+            }
+          >
+            {modalOpen === 'terms' ? (
+              <div className="space-y-4 text-sm text-slate-700 dark:text-slate-300">
+                <p className="font-semibold text-slate-900 dark:text-white">Termos de Uso do CortexAI</p>
+                <p>Ao se cadastrar, você cria uma conta autorizada para acessar o painel de controle, cadastrar produtos, clientes, vendas e gerenciar o estoque da sua empresa.</p>
+                <p>Seu acesso é individual e intransferível. Você deve manter suas credenciais seguras, não compartilhar senha com terceiros e usar a plataforma apenas para atividades comerciais e administrativas relacionadas à sua empresa.</p>
+                <p>O CortexAI fornece recursos de gestão, mas não se responsabiliza por uso indevido da conta, por conteúdo inserido incorretamente ou por ações que violem leis, normas ou os direitos de outras pessoas.</p>
+                <p>Ao aceitar estes termos, você concorda em fornecer informações verdadeiras, manter os dados da empresa e dos clientes atualizados e respeitar as regras de uso do sistema.</p>
+              </div>
+            ) : (
+              <div className="space-y-4 text-sm text-slate-700">
+                <p className="font-semibold text-slate-900">Política de Privacidade</p>
+                <p>Quando você se cadastra, o CortexAI coleta os dados necessários para criar sua conta, validar o acesso e operar o sistema: nome da empresa, e-mail, telefone, CPF/CNPJ e outras informações de contato.</p>
+                <p>Esses dados são usados para autenticação, ativação do serviço, comunicação sobre a conta e suporte técnico. Também podem ser usados para melhorar a experiência e entregar funcionalidades relevantes dentro da plataforma.</p>
+                <p>O CortexAI não compartilha suas informações pessoais com terceiros sem consentimento, exceto quando exigido por lei ou para cumprir obrigações regulatórias.</p>
+                <p>Os seus dados são armazenados com medidas de segurança e o acesso é restrito a pessoas autorizadas. Você pode atualizar suas informações sempre que necessário para manter o cadastro correto.</p>
+              </div>
+            )}
+          </Modal>
         </div>
       </div>
     </div>

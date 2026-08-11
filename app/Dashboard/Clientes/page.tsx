@@ -32,7 +32,7 @@ export default function ClientesPage() {
   function openAdd() { setEditOne(null); setForm(EMPTY); setShowModal(true); }
   function openEdit(c: Cliente) { setEditOne(c); setForm({ nome: c.nome, cpf: c.cpf || '', email: c.email || '', telefone: c.telefone || '', endereco: c.endereco || '', obs: c.obs || '', ativo: c.ativo }); setShowModal(true); }
 
-  async function handleSave() { if (!form.nome.trim()) { addToast('error', 'Nome obrigatório'); return; } setSaving(true); try { if (editOne) await updateCliente(editOne.id, form); else await createCliente(form); setShowModal(false); addToast('success', editOne ? 'Atualizado!' : 'Criado!'); load(); } catch (e: any) { addToast('error', e?.message || 'Erro'); } finally { setSaving(false); } }
+  async function handleSave() { if (!form.nome.trim()) { addToast('error', 'Nome obrigatório'); return; } setSaving(true); try { if (editOne) await updateCliente(editOne.id, form); else await createCliente(form); setShowModal(false); addToast('success', editOne ? 'Atualizado!' : 'Criado!'); load(); } catch (e: unknown) { addToast('error', e instanceof Error ? e.message : 'Erro'); } finally { setSaving(false); } }
   async function handleDel() { if (!delTarget) return; try { await deleteCliente(delTarget.id); addToast('success', 'Excluído!'); setDelTarget(null); load(); } catch { addToast('error', 'Erro ao excluir'); } }
   function exportCSV() { const rows = [['Nome', 'CPF', 'Email', 'Telefone'].join(','), ...filtered.map(c => [c.nome, c.cpf || '', c.email || '', c.telefone || ''].join(','))].join('\n'); const a = document.createElement('a'); a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(rows); a.download = 'clientes.csv'; a.click(); }
 

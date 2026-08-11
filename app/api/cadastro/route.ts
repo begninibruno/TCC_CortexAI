@@ -1,129 +1,83 @@
-// app/api/cadastro/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { getAdminAuth, getAdminDb, initializeFirebaseAdmin } from '@/lib/firebaseAdmin';
 
-import { NextResponse } from 'next/server';
-import { NextRequest } from 'next/server';
-import { initializeFirebaseAdmin, getAdminAuth, getAdminDb } from '@/lib/firebaseAdmin';
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(req: NextRequest) {
+  let createdUserId: string | null = null;
+
   try {
-    initializeFirebaseAdmin();
-    const db = getAdminDb();
-    const auth = getAdminAuth();
-
     const body = await req.json();
+    const { empresa, responsavel, email, telefone, cpfCnpj, senha } = body ?? {};
 
-    const {
-      empresa,
-      responsavel,
-      email,
-      telefone,
-      cpfCnpj,
-      senha,
-    } = body;
-
-    // Validação básica
-    if (
-      !empresa ||
-      !responsavel ||
-      !email ||
-      !telefone ||
-      !cpfCnpj ||
-      !senha
-    ) {
-      return NextResponse.json(
-        { erro: 'Todos os campos são obrigatórios' },
-        { status: 400 }
-      );
+    if ([empresa, responsavel, email, telefone, cpfCnpj, senha].some((value) => typeof value !== 'string')) {
+      return NextResponse.json({ erro: 'Dados de cadastro inválidos' }, { status: 400 });
     }
 
-    // Validação de email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-    if (!emailRegex.test(email)) {
-      return NextResponse.json(
-        { erro: 'Email inválido' },
-        { status: 400 }
-      );
-    }
-
-    // Validação CPF/CNPJ
+    const empresaLimpa = empresa.trim();
+    const responsavelLimpo = responsavel.trim();
+    const emailLimpo = email.trim().toLowerCase();
+    const telefoneLimpo = telefone.replace(/\D/g, '');
     const cpfCnpjLimpo = cpfCnpj.replace(/\D/g, '');
 
-    if (cpfCnpjLimpo.length !== 11 && cpfCnpjLimpo.length !== 14) {
-      return NextResponse.json(
-        { erro: 'CPF ou CNPJ inválido' },
-        { status: 400 }
-      );
+    if (!empresaLimpa || !responsavelLimpo || !emailLimpo || !telefoneLimpo || !cpfCnpjLimpo || !senha) {
+      return NextResponse.json({ erro: 'Todos os campos são obrigatórios' }, { status: 400 });
     }
-
-    // Validação telefone
-    const telefoneLimpo = telefone.replace(/\D/g, '');
-
+    if (!emailRegex.test(emailLimpo)) {
+      return NextResponse.json({ erro: 'E-mail inválido' }, { status: 400 });
+    }
     if (telefoneLimpo.length < 10 || telefoneLimpo.length > 11) {
-      return NextResponse.json(
-        { erro: 'Telefone inválido' },
-        { status: 400 }
-      );
+      return NextResponse.json({ erro: 'Telefone inválido' }, { status: 400 });
     }
-
-    // Validação senha
+    if (cpfCnpjLimpo.length !== 11 && cpfCnpjLimpo.length !== 14) {
+      return NextResponse.json({ erro: 'CPF ou CNPJ inválido' }, { status: 400 });
+    }
     if (senha.length < 6) {
-      return NextResponse.json(
-        { erro: 'Senha deve ter no mínimo 6 caracteres' },
-        { status: 400 }
-      );
+      return NextResponse.json({ erro: 'A senha deve ter ao menos 6 caracteres' }, { status: 400 });
     }
 
-    // Criar usuário no Firebase Auth
+    initializeFirebaseAdmin();
+    const auth = getAdminAuth();
+    const db = getAdminDb();
     const userRecord = await auth.createUser({
-      email: email.trim(),
+      email: emailLimpo,
       password: senha,
-      displayName: responsavel,
+      displayName: responsavelLimpo,
     });
+    createdUserId = userRecord.uid;
 
-    // Salvar dados da empresa no Firestore
+    const now = new Date().toISOString();
     await db.collection('empresas').doc(userRecord.uid).set({
-      empresa,
-      responsavel,
-      email: email.trim(),
+      empresa: empresaLimpa,
+      responsavel: responsavelLimpo,
+      email: emailLimpo,
       telefone: telefoneLimpo,
       cpfCnpj: cpfCnpjLimpo,
-      criadoEm: new Date().toISOString(),
-      atualizadoEm: new Date().toISOString(),
+      criadoEm: now,
+      atualizadoEm: now,
     });
 
-    // Gerar token customizado
-    const customToken = await auth.createCustomToken(userRecord.uid);
-
-    return NextResponse.json(
-      {
-        sucesso: true,
-        mensagem: 'Cadastro realizado com sucesso',
-        token: customToken,
-        usuario: {
-          id: userRecord.uid,
-          nome: responsavel,
-          email: email.trim(),
-        },
-      },
-      { status: 201 }
-    );
-  } catch (error: any) {
-    console.error('Erro ao criar cadastro:', error);
-
-    // Verificar se é erro de email já existente
-    if (error.code === 'auth/email-already-exists') {
-      return NextResponse.json(
-        { erro: 'Este email já está cadastrado' },
-        { status: 400 }
-      );
+    const token = await auth.createCustomToken(userRecord.uid);
+    return NextResponse.json({
+      sucesso: true,
+      mensagem: 'Cadastro realizado com sucesso',
+      token,
+      usuario: { id: userRecord.uid, nome: responsavelLimpo, email: emailLimpo },
+    }, { status: 201 });
+  } catch (error: unknown) {
+    if (createdUserId) {
+      try {
+        await getAdminAuth().deleteUser(createdUserId);
+      } catch (rollbackError) {
+        console.error('Erro ao desfazer cadastro incompleto:', rollbackError);
+      }
     }
 
-    return NextResponse.json(
-      {
-        erro: error.message || 'Erro interno ao processar cadastro',
-      },
-      { status: 500 }
-    );
+    const code = typeof error === 'object' && error && 'code' in error ? String(error.code) : '';
+    if (code === 'auth/email-already-exists') {
+      return NextResponse.json({ erro: 'Este e-mail já está cadastrado' }, { status: 400 });
+    }
+    console.error('Erro ao criar cadastro:', error);
+    return NextResponse.json({ erro: 'Não foi possível concluir o cadastro. Tente novamente.' }, { status: 500 });
   }
 }

@@ -1,30 +1,50 @@
-// lib/firebaseAdmin.ts
-import admin from 'firebase-admin';
+import { cert, getApps, initializeApp } from "firebase-admin/app";
+import { getAuth, Auth } from "firebase-admin/auth";
+import { getFirestore, Firestore } from "firebase-admin/firestore";
 
-let initialized = false;
+let adminAuth: Auth | null = null;
+let adminDb: Firestore | null = null;
 
 export function initializeFirebaseAdmin() {
-  if (initialized) return;
-
-  if (admin.apps.length === 0) {
-    admin.initializeApp({
-      credential: admin.credential.cert({
-        projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-      } as any),
-    });
+  if (getApps().length > 0) {
+    return getApps()[0];
   }
 
-  initialized = true;
+  const projectId = process.env.FIREBASE_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY;
+
+  if (!projectId || !clientEmail || !privateKey) {
+    throw new Error(
+      "Variáveis do Firebase não foram configuradas corretamente no .env.local"
+    );
+  }
+
+  return initializeApp({
+    credential: cert({
+      projectId,
+      clientEmail,
+      privateKey: privateKey.replace(/\\n/g, "\n"),
+    }),
+  });
 }
 
-export function getAdminAuth() {
+export function getAdminAuth(): Auth {
   initializeFirebaseAdmin();
-  return admin.auth();
+
+  if (!adminAuth) {
+    adminAuth = getAuth();
+  }
+
+  return adminAuth;
 }
 
-export function getAdminDb() {
+export function getAdminDb(): Firestore {
   initializeFirebaseAdmin();
-  return admin.firestore();
+
+  if (!adminDb) {
+    adminDb = getFirestore();
+  }
+
+  return adminDb;
 }

@@ -3,8 +3,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import type { ToastMessage } from './types';
 
-// ─── Toast Context ────────────────────────────────────────────────────────────
-
 interface ToastContextValue {
   toasts: ToastMessage[];
   addToast: (type: ToastMessage['type'], message: string) => void;
@@ -44,8 +42,6 @@ export function useToast() {
   return useContext(ToastContext);
 }
 
-// ─── Theme Context ────────────────────────────────────────────────────────────
-
 interface ThemeContextValue {
   dark: boolean;
   toggleTheme: () => void;
@@ -66,7 +62,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', dark);
-  }, []);
+  }, [dark]);
 
   const toggleTheme = useCallback(() => {
     setDark((prev) => {
@@ -87,8 +83,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 export function useTheme() {
   return useContext(ThemeContext);
 }
-
-// ─── Sidebar Context (mobile) ─────────────────────────────────────────────────
 
 interface SidebarContextValue {
   sidebarOpen: boolean;
