@@ -20,11 +20,26 @@ export function initializeFirebaseAdmin() {
     );
   }
 
+  // Some env formats (or manual copy/paste) may include surrounding quotes
+  // and literal "\n" sequences. Normalize the key so the PEM parser accepts it.
+  const normalizedPrivateKey = (() => {
+    let key = privateKey;
+    // remove surrounding double quotes if present
+    if (key.startsWith('"') && key.endsWith('"')) {
+      key = key.slice(1, -1);
+    }
+
+    // replace escaped newlines with real newlines
+    key = key.replace(/\\n/g, '\n');
+
+    return key;
+  })();
+
   return initializeApp({
     credential: cert({
       projectId,
       clientEmail,
-      privateKey: privateKey.replace(/\\n/g, "\n"),
+      privateKey: normalizedPrivateKey,
     }),
   });
 }
