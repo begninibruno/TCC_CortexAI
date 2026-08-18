@@ -4,6 +4,9 @@ import {
   signOut,
   signInWithEmailAndPassword,
   updateProfile,
+  updatePassword,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
   User as FirebaseUser,
 } from 'firebase/auth';
 
@@ -56,6 +59,21 @@ export async function signUp(data: SignupData): Promise<{ user: FirebaseUser; to
 
 export async function logout(): Promise<void> {
   await signOut(auth);
+}
+
+export async function updateDisplayName(nome: string): Promise<void> {
+  const user = auth.currentUser;
+  if (!user) throw new Error('Sua sessão expirou. Entre novamente para continuar.');
+  await updateProfile(user, { displayName: nome.trim() });
+}
+
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  const user = auth.currentUser;
+  if (!user || !user.email) throw new Error('Sua sessão expirou. Entre novamente para continuar.');
+
+  const credential = EmailAuthProvider.credential(user.email, currentPassword);
+  await reauthenticateWithCredential(user, credential);
+  await updatePassword(user, newPassword);
 }
 
 export function getCurrentUser(): FirebaseUser | null {
