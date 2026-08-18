@@ -2,15 +2,40 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAdminAuth, getAdminDb, initializeFirebaseAdmin } from '@/lib/firebaseAdmin';
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const validPlans = new Set(['cortexmini', 'cortex', 'cortexpro']);
+const weakSequence = /(0123|1234|2345|3456|4567|5678|6789|7890|9876|8765|7654|6543|5432|4321)/;
+
+function isStrongPassword(password: string) {
+  return password.length >= 8
+    && /[A-Z]/.test(password)
+    && /[a-z]/.test(password)
+    && /[^A-Za-z0-9]/.test(password)
+    && !weakSequence.test(password);
+}
+
+async function verifyTurnstile(token: string | null) {
+  const secret = process.env.TURNSTILE_SECRET_KEY;
+  if (!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && !secret) return true;
+  if (!secret) return false;
+  if (!token) return false;
+
+  const response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ secret, response: token }),
+  });
+  const result = await response.json() as { success?: boolean };
+  return result.success === true;
+}
 
 export async function POST(req: NextRequest) {
   let createdUserId: string | null = null;
 
   try {
     const body = await req.json();
-    const { empresa, responsavel, email, telefone, cpfCnpj, senha } = body ?? {};
+    const { empresa, responsavel, email, telefone, cpfCnpj, senha, plano, captchaToken } = body ?? {};
 
-    if ([empresa, responsavel, email, telefone, cpfCnpj, senha].some((value) => typeof value !== 'string')) {
+    if ([empresa, responsavel, email, telefone, cpfCnpj, senha, plano].some((value) => typeof value !== 'string')) {
       return NextResponse.json({ erro: 'Dados de cadastro inválidos' }, { status: 400 });
     }
 
@@ -32,8 +57,14 @@ export async function POST(req: NextRequest) {
     if (cpfCnpjLimpo.length !== 11 && cpfCnpjLimpo.length !== 14) {
       return NextResponse.json({ erro: 'CPF ou CNPJ inválido' }, { status: 400 });
     }
-    if (senha.length < 6) {
-      return NextResponse.json({ erro: 'A senha deve ter ao menos 6 caracteres' }, { status: 400 });
+    if (!isStrongPassword(senha)) {
+      return NextResponse.json({ erro: 'A senha nao atende aos requisitos de seguranca' }, { status: 400 });
+    }
+    if (!validPlans.has(plano)) {
+      return NextResponse.json({ erro: 'Plano selecionado invalido' }, { status: 400 });
+    }
+    if (!await verifyTurnstile(typeof captchaToken === 'string' ? captchaToken : null)) {
+      return NextResponse.json({ erro: 'Nao foi possivel confirmar a verificacao humana' }, { status: 400 });
     }
 
     initializeFirebaseAdmin();
@@ -53,6 +84,7 @@ export async function POST(req: NextRequest) {
       email: emailLimpo,
       telefone: telefoneLimpo,
       cpfCnpj: cpfCnpjLimpo,
+      plano,
       criadoEm: now,
       atualizadoEm: now,
     });

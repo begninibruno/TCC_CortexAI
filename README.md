@@ -1,36 +1,66 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# CortexAI
 
-## Getting Started
+Sistema web desenvolvido com Next.js, React e Firebase.
 
-First, run the development server:
+## Requisitos
+
+- [Node.js](https://nodejs.org/) 20.9 ou superior (recomendado: versão LTS atual)
+- npm 10 ou superior, instalado junto com o Node.js
+- Um projeto Firebase com Authentication e Firestore habilitados
+
+As dependências JavaScript necessárias estão declaradas em `package.json` e bloqueadas em `package-lock.json`. Não é necessário instalar bibliotecas uma a uma.
+
+## Instalação
+
+1. Clone ou extraia o projeto e abra um terminal na pasta dele.
+2. Instale exatamente as versões registradas no projeto:
+
+   ```bash
+   npm ci
+   ```
+
+3. Crie o arquivo de configuração local a partir do modelo:
+
+   ```bash
+   cp .env.example .env.local
+   ```
+
+   No Windows PowerShell, use:
+
+   ```powershell
+   Copy-Item .env.example .env.local
+   ```
+
+4. Preencha `.env.local` com as credenciais do seu projeto Firebase. Consulte [SETUP_FIREBASE_ADMIN.md](SETUP_FIREBASE_ADMIN.md) para obter a chave da conta de serviço.
+5. Habilite os provedores de login desejados em **Firebase Authentication** e crie um banco **Cloud Firestore**. Aplique as regras em [FIRESTORE_RULES.md](FIRESTORE_RULES.md).
+6. Para ativar a verificação humana no cadastro, crie um widget no [Cloudflare Turnstile](https://dash.cloudflare.com/?to=/:account/turnstile) e preencha `NEXT_PUBLIC_TURNSTILE_SITE_KEY` e `TURNSTILE_SECRET_KEY` no `.env.local`.
+7. Inicie o ambiente de desenvolvimento:
+
+   ```bash
+   npm run dev
+   ```
+
+8. Abra [http://localhost:3000](http://localhost:3000).
+
+## Produção
+
+Após configurar as mesmas variáveis de ambiente no servidor de hospedagem:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm ci
+npm run build
+npm start
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Comandos disponíveis
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Comando | Finalidade |
+| --- | --- |
+| `npm run dev` | Executa o site em desenvolvimento. |
+| `npm run build` | Gera a versão otimizada de produção. |
+| `npm start` | Inicia a versão de produção após o build. |
+| `npm run lint` | Verifica problemas de código. |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Segurança
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+`.env.local` contém credenciais privadas e já está ignorado pelo Git. Não o envie para repositórios, e-mails ou mensagens. O arquivo `.env.example` contém somente nomes e valores de exemplo seguros para compartilhar.

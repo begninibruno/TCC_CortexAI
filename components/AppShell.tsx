@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation';
 import { Moon, Sun } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
+import ProfileMenu from '@/components/ProfileMenu';
 import { AuthProvider } from '@/context/AuthContext';
 import { SidebarProvider, ThemeProvider, ToastProvider, useTheme } from '@/lib/context';
 
@@ -25,6 +26,7 @@ function AppShellContent({ children, hideSidebar }: { children: React.ReactNode;
       )}
 
       {!hideSidebar && <Sidebar />}
+      {!hideSidebar && <ProfileMenu />}
       <main className="flex-1 min-h-screen">{children}</main>
     </div>
   );

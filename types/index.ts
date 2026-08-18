@@ -6,6 +6,7 @@ export interface User {
   nomeLoja?: string;
   cnpj?: string;
   cpf?: string;
+  plano?: 'cortexmini' | 'cortex' | 'cortexpro';
 }
 
 export interface AuthContextType {

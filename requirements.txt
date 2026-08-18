@@ -1,0 +1,19 @@
+CortexAI e um projeto Node.js/Next.js, nao Python.
+
+Para instalar todas as dependencias, use o arquivo package-lock.json:
+
+    npm ci
+
+Requisitos de ambiente:
+- Node.js >= 20.9.0
+- npm >= 10.0.0
+- Projeto Firebase com Authentication e Cloud Firestore configurados
+- Arquivo .env.local criado a partir de .env.example e preenchido com as credenciais do Firebase
+
+Para executar localmente:
+
+    npm run dev
+
+Depois, abra http://localhost:3000 no navegador.
+
+Veja README.md para as instrucoes completas e SETUP_FIREBASE_ADMIN.md para configurar as credenciais administrativas.

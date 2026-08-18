@@ -15,10 +15,24 @@ import {
   Lock,
   User,
   ChevronRight,
-  FileText
+  FileText,
+  Database,
+  Sparkles,
+  Bot,
+  ShieldCheck,
+  Check,
 } from 'lucide-react';
 
 import Modal from '@/components/Modal';
+import TurnstileCaptcha from '@/components/TurnstileCaptcha';
+
+const PLANS = [
+  { id: 'cortexmini', name: 'CortexMini', description: 'Para comecar: dados e armazenamento essenciais.', icon: Database },
+  { id: 'cortex', name: 'Cortex', description: 'A capacidade ideal para a operacao diaria da sua empresa.', icon: Sparkles },
+  { id: 'cortexpro', name: 'CortexPro', description: 'Mais memoria, maior capacidade e assistente inteligente.', icon: Bot },
+] as const;
+
+type PlanId = (typeof PLANS)[number]['id'];
 
 type FormDataType = {
   empresa: string;
@@ -28,6 +42,7 @@ type FormDataType = {
   identificador: string;
   senha: string;
   confirmarSenha: string;
+  plano: PlanId;
 };
 
 type ErrorsType = Partial<Record<keyof FormDataType, string>> & { geral?: string };
@@ -41,11 +56,13 @@ export default function PaginaCadastro() {
     telefone: '',
     identificador: '', // ADICIONADO AQUI
     senha: '',
-    confirmarSenha: ''
+    confirmarSenha: '',
+    plano: 'cortex',
   });
   const [erros, setErros] = useState<ErrorsType>({} as ErrorsType);
   const [carregando, setCarregando] = useState(false);
   const [modalOpen, setModalOpen] = useState<'terms' | 'privacy' | null>(null);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
 
 
 
@@ -69,13 +86,21 @@ export default function PaginaCadastro() {
       
    
     } else if (etapa === 3) {
+      if (!formData.plano) novosErros.plano = 'Selecione um plano';
+    } else if (etapa === 4) {
       if (!formData.senha) {
         novosErros.senha = 'Senha é obrigatória';
       } else if (formData.senha.length < 6) {
         novosErros.senha = 'Mínimo 6 caracteres';
       }
+      if (formData.senha && !isPasswordValid(formData.senha)) {
+        novosErros.senha = 'A senha ainda nao atende aos requisitos';
+      }
       if (formData.senha !== formData.confirmarSenha) {
         novosErros.confirmarSenha = 'Senhas não coincidem';
+      }
+      if (process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && !captchaToken) {
+        novosErros.geral = 'Confirme a verificacao humana para continuar';
       }
     }
 
@@ -113,6 +138,8 @@ export default function PaginaCadastro() {
           telefone: formData.telefone,
           cpfCnpj: formData.identificador,
           senha: formData.senha,
+          plano: formData.plano,
+          captchaToken,
         }),
       });
 
@@ -154,6 +181,22 @@ export default function PaginaCadastro() {
     }
     return valor;
   };
+
+  const passwordRequirements = [
+    { label: 'Pelo menos 8 caracteres', valid: formData.senha.length >= 8 },
+    { label: 'Uma letra maiuscula', valid: /[A-Z]/.test(formData.senha) },
+    { label: 'Uma letra minuscula', valid: /[a-z]/.test(formData.senha) },
+    { label: 'Um caractere especial', valid: /[^A-Za-z0-9]/.test(formData.senha) },
+    { label: 'Sem sequencia numerica (ex.: 1234)', valid: !/(0123|1234|2345|3456|4567|5678|6789|7890|9876|8765|7654|6543|5432|4321)/.test(formData.senha) },
+  ];
+
+  function isPasswordValid(password: string) {
+    return password.length >= 8
+      && /[A-Z]/.test(password)
+      && /[a-z]/.test(password)
+      && /[^A-Za-z0-9]/.test(password)
+      && !/(0123|1234|2345|3456|4567|5678|6789|7890|9876|8765|7654|6543|5432|4321)/.test(password);
+  }
 
   
 
@@ -232,7 +275,7 @@ export default function PaginaCadastro() {
 
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-slate-950 dark:text-white mb-2">Vamos começar</h1>
-            <p className="text-slate-500 dark:text-slate-400">Cadastre sua empresa em três etapas rápidas.</p>
+            <p className="text-slate-500 dark:text-slate-400">Cadastre sua empresa em quatro etapas rápidas.</p>
           </div>
 
           {erros.geral && (
@@ -243,13 +286,13 @@ export default function PaginaCadastro() {
 
           <div className="mb-6">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Etapa {etapa} de 3</span>
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Etapa {etapa} de 4</span>
               <span className="text-sm text-slate-500 dark:text-slate-400">
-                {etapa === 1 ? 'Empresa' : etapa === 2 ? 'Contato' : 'Senha'}
+                {etapa === 1 ? 'Empresa' : etapa === 2 ? 'Contato' : etapa === 3 ? 'Plano' : 'Segurança'}
               </span>
             </div>
             <div className="flex gap-2">
-              {[1, 2, 3].map((num) => (
+              {[1, 2, 3, 4].map((num) => (
                 <div
                   key={num}
                   className={`h-2 flex-1 rounded-full transition-colors ${
@@ -376,6 +419,43 @@ export default function PaginaCadastro() {
             
             {/* Etapa 3 */}
             {etapa === 3 && (
+              <div>
+                <div className="mb-3">
+                  <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Escolha o seu plano</p>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Voce podera mudar de plano mais tarde.</p>
+                </div>
+                <div className="space-y-3">
+                  {PLANS.map(({ id, name, description, icon: Icon }) => {
+                    const selected = formData.plano === id;
+                    return (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => setFormData({ ...formData, plano: id })}
+                        className={`w-full rounded-lg border p-4 text-left transition ${selected ? 'border-blue-600 bg-blue-50 ring-2 ring-blue-500/20 dark:border-blue-400 dark:bg-blue-500/10' : 'border-slate-200 bg-white hover:border-blue-300 dark:border-slate-700 dark:bg-slate-900'}`}
+                      >
+                        <span className="flex items-start gap-3">
+                          <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${selected ? 'bg-blue-700 text-white' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'}`}>
+                            <Icon className="h-5 w-5" />
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="flex items-center justify-between gap-3 font-semibold text-slate-900 dark:text-white">
+                              {name}
+                              {selected && <Check className="h-4 w-4 text-blue-700 dark:text-blue-300" />}
+                            </span>
+                            <span className="mt-1 block text-xs leading-5 text-slate-500 dark:text-slate-400">{description}</span>
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {erros.plano && <p className="mt-2 text-sm text-red-500">{erros.plano}</p>}
+              </div>
+            )}
+
+            {/* Etapa 4 */}
+            {etapa === 4 && (
               <>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
@@ -394,6 +474,14 @@ export default function PaginaCadastro() {
                   {erros.senha && (
                     <p className="mt-1 text-sm text-red-500">{erros.senha}</p>
                   )}
+                  <ul className="mt-3 grid gap-1.5 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs dark:border-slate-800 dark:bg-slate-900/60">
+                    {passwordRequirements.map((requirement) => (
+                      <li key={requirement.label} className={`flex items-center gap-2 ${requirement.valid ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'}`}>
+                        <ShieldCheck className="h-3.5 w-3.5" />
+                        {requirement.label}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
 
                 <div>
@@ -414,6 +502,7 @@ export default function PaginaCadastro() {
                     <p className="mt-1 text-sm text-red-500">{erros.confirmarSenha}</p>
                   )}
                 </div>
+                <TurnstileCaptcha onVerify={setCaptchaToken} />
               </>
             )}
 
@@ -429,7 +518,7 @@ export default function PaginaCadastro() {
                 </button>
               )}
               
-              {etapa < 3 ? (
+              {etapa < 4 ? (
                 <button
                   type="button"
                   onClick={avancarEtapa}

@@ -9,13 +9,13 @@ import { getFirestore } from 'firebase/firestore';
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyDEdLf9xTXRQmyC98P5vFY4GKgZX0pTy3g",
-  authDomain: "cortexai-5add6.firebaseapp.com",
-  projectId: "cortexai-5add6",
-  storageBucket: "cortexai-5add6.firebasestorage.app",
-  messagingSenderId: "543085453304",
-  appId: "1:543085453304:web:4438f299706d7a8e96400d",
-  measurementId: "G-HKNHGC6R05"
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
 // Initialize Firebase
@@ -24,5 +24,7 @@ let analytics;
 
 if (typeof window !== 'undefined') {
   analytics = getAnalytics(app);
-}export const auth = getAuth(app);
+}
+
+export const auth = getAuth(app);
 export const db = getFirestore(app);

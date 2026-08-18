@@ -1,0 +1,107 @@
+COMO RODAR O CORTEXAI NO COMPUTADOR
+====================================
+
+1. INSTALAR O NODE.JS
+--------------------
+
+Instale o Node.js LTS (versao 20.9 ou mais recente):
+https://nodejs.org/
+
+Depois da instalacao, feche e abra o PowerShell novamente.
+
+
+2. ABRIR A PASTA DO PROJETO
+---------------------------
+
+Copie ou clone o repositorio para o computador.
+
+Abra o PowerShell dentro da pasta do projeto.
+Uma forma simples: abra a pasta no Explorador de Arquivos, clique com o botao
+direito em uma area vazia e escolha "Abrir no Terminal".
+
+
+3. INSTALAR AS BIBLIOTECAS
+--------------------------
+
+No PowerShell, execute:
+
+    npm ci
+
+Aguarde o termino. Este comando instala todas as bibliotecas necessarias.
+
+
+4. CRIAR A CONFIGURACAO LOCAL
+-----------------------------
+
+Ainda no PowerShell, execute:
+
+    Copy-Item .env.example .env.local
+
+Isso cria o arquivo .env.local. Ele guarda as configuracoes do Firebase apenas
+no seu computador e nao deve ser compartilhado.
+
+
+5. CONFIGURAR O FIREBASE
+------------------------
+
+Abra o arquivo .env.local em um editor de texto e substitua os valores de
+exemplo pelas credenciais do seu projeto Firebase.
+
+Voce precisara de:
+- Configuracao do aplicativo web, em Firebase > Project settings > Your apps.
+- Credenciais da conta de servico, em Firebase > Project settings > Service accounts.
+
+O guia detalhado esta no arquivo SETUP_FIREBASE_ADMIN.md.
+
+No Firebase, tambem habilite:
+- Authentication
+- Cloud Firestore
+
+Depois aplique as regras do arquivo FIRESTORE_RULES.md no Cloud Firestore.
+
+
+6. INICIAR O SITE
+-----------------
+
+Execute:
+
+    npm run dev
+
+Quando aparecer que o servidor esta pronto, abra o navegador no endereco:
+
+    http://localhost:3000
+
+
+7. PARAR O SITE
+---------------
+
+No PowerShell onde o site esta rodando, pressione:
+
+    Ctrl + C
+
+
+PROXIMAS VEZES
+--------------
+
+Depois que tudo estiver configurado, basta abrir o PowerShell na pasta do
+projeto e executar:
+
+    npm run dev
+
+
+PROBLEMAS COMUNS
+---------------
+
+- "npm" nao e reconhecido:
+  Instale o Node.js, feche o PowerShell e abra-o novamente.
+
+- Erro relacionado ao Firebase:
+  Confira se o arquivo .env.local existe e se todas as credenciais foram
+  preenchidas corretamente. Depois pare e inicie o site novamente.
+
+- A porta 3000 esta em uso:
+  Feche outro terminal que esteja rodando o projeto ou execute:
+
+    npm run dev -- --port 3001
+
+  Nesse caso, abra http://localhost:3001.
