@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useId, useRef } from 'react';
 import { X } from 'lucide-react';
 
 interface ModalProps {
@@ -20,6 +20,8 @@ const SIZE_CLASSES = {
 };
 
 export default function Modal({ isOpen, onClose, title, children, footer, size = 'md' }: ModalProps) {
+  const titleId = useId();
+  const panelRef = useRef<HTMLDivElement>(null);
   const handleEsc = useCallback(
     (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); },
     [onClose]
@@ -29,6 +31,10 @@ export default function Modal({ isOpen, onClose, title, children, footer, size =
     if (isOpen) {
       document.addEventListener('keydown', handleEsc);
       document.body.style.overflow = 'hidden';
+      window.requestAnimationFrame(() => {
+        const focusTarget = panelRef.current?.querySelector<HTMLElement>('[autofocus], input, select, textarea, button');
+        focusTarget?.focus();
+      });
     }
     return () => {
       document.removeEventListener('keydown', handleEsc);
@@ -40,7 +46,7 @@ export default function Modal({ isOpen, onClose, title, children, footer, size =
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-4"
       onClick={onClose}
     >
       {/* Backdrop */}
@@ -48,16 +54,21 @@ export default function Modal({ isOpen, onClose, title, children, footer, size =
 
       {/* Panel */}
       <div
-        className={`relative w-full ${SIZE_CLASSES[size]} bg-white dark:bg-slate-800
-          rounded-2xl shadow-2xl flex flex-col max-h-[90vh] animate-slideIn`}
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className={`relative flex max-h-[92dvh] w-full ${SIZE_CLASSES[size]} flex-col rounded-t-3xl border border-slate-200 bg-white shadow-2xl animate-fadeIn dark:border-slate-700 dark:bg-slate-900 sm:max-h-[90vh] sm:rounded-2xl`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b
           border-slate-200 dark:border-slate-700">
-          <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">{title}</h2>
+          <h2 id={titleId} className="text-lg font-bold text-slate-900 dark:text-slate-100">{title}</h2>
           <button
+            type="button"
             onClick={onClose}
+            aria-label="Fechar janela"
             className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200
               hover:bg-slate-100 dark:hover:bg-slate-700 transition-all"
           >
@@ -66,14 +77,13 @@ export default function Modal({ isOpen, onClose, title, children, footer, size =
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto px-6 py-4">
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 sm:px-6">
           {children}
         </div>
 
         {/* Footer */}
         {footer && (
-          <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-700 flex
-            justify-end gap-3">
+          <div className="flex flex-wrap-reverse justify-end gap-3 border-t border-slate-200 px-5 py-4 dark:border-slate-700 sm:px-6">
             {footer}
           </div>
         )}

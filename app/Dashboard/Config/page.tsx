@@ -48,8 +48,8 @@ export default function DashboardConfigPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 px-5 py-10 text-slate-900 dark:bg-slate-950 dark:text-white sm:px-8 lg:px-12">
-      <div className="mx-auto max-w-4xl pt-10 sm:pt-4">
+    <div className="dashboard-page text-slate-900 dark:text-white">
+      <div className="mx-auto max-w-4xl">
         <div className="mb-8 flex items-center gap-4">
           <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-500/20"><Settings className="h-6 w-6" /></span>
           <div><h1 className="text-3xl font-bold tracking-tight">Configurações da conta</h1><p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Gerencie seus dados e a segurança de acesso.</p></div>

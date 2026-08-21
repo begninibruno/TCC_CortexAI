@@ -1,189 +1,155 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
+import Image from 'next/image';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import {
-  Home,
-  LayoutDashboard,
-  Package,
-  Tag,
-  ShoppingCart,
-  BarChart2,
-  Cpu,
-  Moon,
-  Sun,
-  Wifi,
-  WifiOff,
-  Bell,
-  Settings,
-  Users,
-  ArrowLeft,
-  ArrowRight,
-  Zap,
-  Gift,
-} from 'lucide-react';
-import { useTheme, useSidebar } from '@/lib/context';
-import { getEspStatus, marcarNaoLidasCount } from '@/lib/api';
+import { Boxes, ChevronLeft, ChevronRight, Menu, Package, Settings, ShoppingCart, Tags, Users, X } from 'lucide-react';
+import { useSidebar } from '@/lib/context';
+import ProfileMenu from '@/components/ProfileMenu';
+import ThemeToggle from '@/components/ThemeToggle';
 
 const NAV_ITEMS = [
   { label: 'Produtos', href: '/Dashboard/Produtos', icon: Package },
-  { label: 'Categorias', href: '/Dashboard/Categorias', icon: Tag },
+  { label: 'Categorias', href: '/Dashboard/Categorias', icon: Tags },
   { label: 'Clientes', href: '/Dashboard/Clientes', icon: Users },
-  { label: 'Estoque', href: '/Dashboard/Estoque', icon: Package },
+  { label: 'Estoque', href: '/Dashboard/Estoque', icon: Boxes },
   { label: 'Vendas', href: '/Dashboard/Vendas', icon: ShoppingCart },
   { label: 'Configurações', href: '/Dashboard/Config', icon: Settings },
 ];
 
-function SidebarContent({ pathname, collapsed, setSidebarOpen, notifsCount }: {
-  pathname: string;
-  collapsed: boolean;
-  setSidebarOpen?: (v: boolean) => void;
-  notifsCount: number;
-}) {
-  const { dark, toggleTheme } = useTheme();
-  const [espOnline, setEspOnline] = useState(false);
-
-  useEffect(() => {
-    async function checkEsp() {
-      try {
-        const s = await getEspStatus();
-        setEspOnline(s.online);
-      } catch {
-        setEspOnline(false);
-      }
-    }
-    checkEsp();
-    const id = setInterval(checkEsp, 30000);
-    return () => clearInterval(id);
-  }, []);
-
-  const activeNavItem = NAV_ITEMS.reduce((best, item) => {
-    if (pathname === item.href || pathname.startsWith(`${item.href}/`)) {
-      return !best || item.href.length > best.href.length ? item : best;
-    }
-    return best;
-  }, null as (typeof NAV_ITEMS)[number] | null);
-
-  const isNavItemActive = (href: string) => activeNavItem?.href === href;
-
+function Brand({ compact = false }: { compact?: boolean }) {
   return (
-    <>
-      <div className={`flex items-center border-b border-blue-900 ${collapsed ? 'justify-center px-3 py-4' : 'gap-3 px-5 py-5'}`}>
-        <div className="w-12 h-12 rounded-3xl bg-gradient-to-br from-blue-600 to-cyan-500 flex items-center justify-center shadow-xl shadow-cyan-500/20">
-          <Cpu className="text-white" size={22} />
-        </div>
-        {!collapsed && (
-          <div>
-            <span className="block text-slate-900 dark:text-white text-xl font-black tracking-tight">CortexAI</span>
-            <span className="text-slate-500 dark:text-slate-300 text-xs uppercase tracking-[0.3em]">Painel</span>
-          </div>
-        )}
-      </div>
+    <Link href="/Dashboard/Produtos" className={`flex items-center ${compact ? 'justify-center' : 'gap-3'}`} aria-label="Ir para o início do painel">
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-blue-200 bg-white shadow-sm dark:border-blue-900 dark:bg-slate-900">
+        <Image src="/logo.png" alt="" width={28} height={28} priority />
+      </span>
+      {!compact && (
+        <span className="min-w-0">
+          <span className="block text-base font-extrabold tracking-tight text-slate-950 dark:text-white">CortexAI</span>
+          <span className="block text-[10px] font-bold uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400">Gestão inteligente</span>
+        </span>
+      )}
+    </Link>
+  );
+}
 
-      <nav className={`flex-1 overflow-y-auto ${collapsed ? 'px-2 py-2' : 'px-3 py-4 space-y-2'}`}>
-        {NAV_ITEMS.map(({ label, href, icon: Icon }) => {
-          const isActive = isNavItemActive(href);
+function Navigation({ pathname, compact = false, onNavigate }: { pathname: string; compact?: boolean; onNavigate?: () => void }) {
+  return (
+    <nav className="flex-1 overflow-y-auto px-3 py-4" aria-label="Navegação principal">
+      {!compact && <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">Operação</p>}
+      <div className="space-y-1.5">
+        {NAV_ITEMS.map(({ label, href, icon: Icon }, index) => {
+          const active = pathname === href || pathname.startsWith(`${href}/`);
+          const startsSettings = index === NAV_ITEMS.length - 1;
           return (
-            <Link
-              key={href}
-              href={href}
-              onClick={() => setSidebarOpen?.(false)}
-              className={`group flex items-center gap-3 rounded-3xl text-sm font-semibold transition-all duration-200 ease-out ${collapsed ? 'justify-center px-2 py-3' : 'px-4 py-3'} ${isActive ? 'bg-blue-500 text-white shadow-[0_20px_50px_rgba(15,23,42,0.35)]' : 'bg-slate-100 dark:bg-white/5 text-slate-900 dark:text-slate-200 hover:bg-blue-500/20 hover:text-white'} transform ${isActive ? '' : 'hover:-translate-x-0.5'}`}
-            >
-              <div className={`flex h-10 w-10 items-center justify-center rounded-3xl ${isActive ? 'bg-blue-600 text-white' : 'bg-slate-200 dark:bg-white/10 text-slate-900 dark:text-slate-200'} transition-all duration-200 group-hover:bg-blue-500/25`}>
-                <Icon className="w-5 h-5" />
-              </div>
-              {!collapsed && (
-                <>
-                  <span className="whitespace-nowrap">{label}</span>
-                  {isActive && <span className="ml-auto h-2 w-2 rounded-full bg-white/80" />}
-                </>
-              )}
-            </Link>
+            <div key={href} className={startsSettings ? 'pt-3' : undefined}>
+              {startsSettings && <div className="mb-3 border-t border-slate-200 dark:border-slate-800" />}
+              <Link
+                href={href}
+                onClick={onNavigate}
+                aria-current={active ? 'page' : undefined}
+                title={compact ? label : undefined}
+                className={`group flex min-h-11 items-center rounded-xl text-sm font-semibold ${compact ? 'justify-center px-2' : 'gap-3 px-3'} ${active ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20' : 'text-slate-600 hover:bg-slate-200/70 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'}`}
+              >
+                <Icon className={`h-5 w-5 shrink-0 ${active ? 'text-white' : 'text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400'}`} aria-hidden="true" />
+                {!compact && <span className="truncate">{label}</span>}
+              </Link>
+            </div>
           );
         })}
-      </nav>
-
-      <div className={`border-t border-blue-900 dark:border-slate-700 ${collapsed ? 'pb-3 pt-2 space-y-2' : 'px-3 pb-4 pt-3 space-y-3'}`}>
-        <div className={`${collapsed ? 'flex justify-center p-3' : 'flex items-center gap-3 px-4 py-3'} rounded-3xl ${espOnline ? 'bg-emerald-500/10 text-emerald-800 dark:text-emerald-200' : 'bg-slate-100 dark:bg-white/5 text-slate-700 dark:text-slate-300'} transition-colors duration-200`}>
-          {espOnline ? <Wifi className="w-4 h-4" /> : <WifiOff className="w-4 h-4" />}
-          {!collapsed && <span className="text-xs font-black uppercase tracking-[0.28em]">{espOnline ? 'ESP online' : 'ESP offline'}</span>}
-        </div>
-
-        <button
-          onClick={toggleTheme}
-          className={`w-full flex items-center gap-3 rounded-3xl ${collapsed ? 'justify-center p-3' : 'px-4 py-3'} bg-slate-100 dark:bg-white/5 text-slate-900 dark:text-slate-200 transition duration-200 hover:bg-blue-500/10 dark:hover:bg-blue-500/20`}
-        >
-          <Moon className="w-5 h-5 dark:hidden" />
-          <Sun className="w-5 h-5 hidden dark:flex text-amber-300" />
-          {!collapsed && <span>{dark ? 'Modo Claro' : 'Modo Escuro'}</span>}
-        </button>
       </div>
-    </>
+    </nav>
+  );
+}
+
+function SidebarFooter({ compact, onToggleCompact }: { compact: boolean; onToggleCompact?: () => void }) {
+  return (
+    <div className="border-t border-slate-200 p-3 dark:border-slate-800">
+      <ProfileMenu compact={compact} />
+      <div className="my-3 border-t border-slate-200 dark:border-slate-800" />
+      <div className={`flex items-center ${compact ? 'flex-col gap-2' : 'gap-2'}`}>
+        <ThemeToggle />
+        {!compact && <span className="min-w-0 flex-1 text-xs font-medium text-slate-500 dark:text-slate-400">Aparência do painel</span>}
+        {onToggleCompact && (
+          <button
+            type="button"
+            onClick={onToggleCompact}
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 hover:border-blue-300 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+            aria-label={compact ? 'Expandir menu lateral' : 'Recolher menu lateral'}
+            title={compact ? 'Expandir menu' : 'Recolher menu'}
+          >
+            {compact ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+          </button>
+        )}
+      </div>
+    </div>
   );
 }
 
 export default function Sidebar() {
   const pathname = usePathname();
   const { sidebarOpen, setSidebarOpen } = useSidebar();
-  const [notifsCount, setNotifsCount] = useState(0);
   const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
-    async function count() {
-      try {
-        const c = await marcarNaoLidasCount();
-        setNotifsCount(c);
-      } catch {
-        setNotifsCount(0);
-      }
-    }
-    count();
+    const frame = window.requestAnimationFrame(() => {
+      setCollapsed(localStorage.getItem('cortex-sidebar-collapsed') === 'true');
+    });
+    return () => window.cancelAnimationFrame(frame);
   }, []);
+
+  useEffect(() => {
+    if (!sidebarOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setSidebarOpen(false);
+    };
+    document.addEventListener('keydown', closeOnEscape);
+    return () => document.removeEventListener('keydown', closeOnEscape);
+  }, [setSidebarOpen, sidebarOpen]);
+
+  function toggleCollapsed() {
+    setCollapsed((current) => {
+      const next = !current;
+      localStorage.setItem('cortex-sidebar-collapsed', String(next));
+      return next;
+    });
+  }
 
   return (
     <>
-      {!sidebarOpen && (
-        <button
-          onClick={() => setSidebarOpen(true)}
-          className="fixed top-4 left-4 z-50 flex h-12 w-12 items-center justify-center rounded-3xl bg-blue-700 text-white shadow-xl shadow-blue-950/40 md:hidden transition-transform duration-200 hover:-translate-y-0.5"
-          aria-label="Abrir menu"
-        >
-          <ArrowRight className="w-6 h-6" />
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={() => setSidebarOpen(true)}
+        className="fixed left-4 top-4 z-30 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-600/25 hover:bg-blue-700 md:hidden"
+        aria-label="Abrir menu principal"
+        aria-expanded={sidebarOpen}
+      >
+        <Menu className="h-5 w-5" />
+      </button>
 
       {sidebarOpen && (
-        <>
-          <div className="fixed inset-0 z-40 bg-slate-950/80 md:hidden" onClick={() => setSidebarOpen(false)} />
-          <aside className="fixed top-0 left-0 z-50 flex h-screen w-[280px] flex-col bg-slate-100 dark:bg-[#071431] border-r border-slate-200 dark:border-blue-900/60 shadow-2xl md:hidden">
-            <div className="flex items-center justify-between px-4 py-4 border-b border-blue-900/70">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-3xl bg-gradient-to-br from-blue-600 to-cyan-500 flex items-center justify-center shadow-xl shadow-cyan-500/20">
-                  <Cpu className="text-white" size={20} />
-                </div>
-                <span className="text-white font-black">CortexAI</span>
-              </div>
-              <button onClick={() => setSidebarOpen(false)} className="text-slate-200 hover:text-white">
-                <ArrowLeft className="w-5 h-5" />
+        <div className="fixed inset-0 z-40 md:hidden">
+          <button type="button" aria-label="Fechar menu" className="absolute inset-0 h-full w-full bg-slate-950/55 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
+          <aside className="relative z-10 flex h-dvh w-[min(19rem,86vw)] flex-col border-r border-slate-200 bg-slate-50 shadow-2xl dark:border-slate-800 dark:bg-slate-950">
+            <div className="flex items-center justify-between border-b border-slate-200 px-4 py-4 dark:border-slate-800">
+              <Brand />
+              <button type="button" onClick={() => setSidebarOpen(false)} className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-200 dark:text-slate-300 dark:hover:bg-slate-800" aria-label="Fechar menu principal">
+                <X className="h-5 w-5" />
               </button>
             </div>
-            <SidebarContent pathname={pathname} collapsed={false} setSidebarOpen={setSidebarOpen} notifsCount={notifsCount} />
+            <Navigation pathname={pathname} onNavigate={() => setSidebarOpen(false)} />
+            <SidebarFooter compact={false} />
           </aside>
-        </>
+        </div>
       )}
 
-      <aside className={`hidden md:flex md:w-[280px] md:flex-col md:bg-slate-100 dark:md:bg-[#071431] md:border-r md:border-slate-200 dark:md:border-blue-900/60 md:shadow-2xl md:transition-all md:duration-300 ${collapsed ? 'md:w-[88px]' : ''}`}>
-        <SidebarContent pathname={pathname} collapsed={collapsed} notifsCount={notifsCount} />
-        <div className="px-3 pb-4 hidden md:block">
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            className="w-full rounded-3xl bg-white/5 px-4 py-3 text-sm font-bold text-slate-200 transition duration-200 hover:bg-white/10"
-          >
-            {collapsed ? 'Abrir' : 'Recolher'}
-          </button>
+      <aside className={`sticky top-0 hidden h-dvh shrink-0 flex-col border-r border-slate-200 bg-slate-50 shadow-sm transition-[width] duration-300 dark:border-slate-800 dark:bg-slate-950 md:flex ${collapsed ? 'w-[5.25rem]' : 'w-64'}`}>
+        <div className="border-b border-slate-200 px-4 py-4 dark:border-slate-800">
+          <Brand compact={collapsed} />
         </div>
+        <Navigation pathname={pathname} compact={collapsed} />
+        <SidebarFooter compact={collapsed} onToggleCompact={toggleCollapsed} />
       </aside>
     </>
   );

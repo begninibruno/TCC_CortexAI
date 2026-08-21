@@ -7,6 +7,8 @@ import {
   updatePassword,
   EmailAuthProvider,
   reauthenticateWithCredential,
+  browserLocalPersistence,
+  setPersistence,
   User as FirebaseUser,
 } from 'firebase/auth';
 
@@ -25,6 +27,7 @@ interface SignupData {
 }
 
 export async function signInWithToken(token: string): Promise<FirebaseUser> {
+  await setPersistence(auth, browserLocalPersistence);
   const result = await signInWithCustomToken(auth, token);
   return result.user;
 }
@@ -32,12 +35,27 @@ export async function signInWithToken(token: string): Promise<FirebaseUser> {
 // O SDK do Firebase valida a senha; o servidor Admin nunca deve emitir token
 // apenas porque um e-mail existe.
 export async function signInDirect(credentials: LoginCredentials): Promise<FirebaseUser> {
-  const result = await signInWithEmailAndPassword(
-    auth,
-    credentials.email.trim(),
-    credentials.senha
-  );
-  return result.user;
+  await setPersistence(auth, browserLocalPersistence);
+  try {
+    const result = await signInWithEmailAndPassword(
+      auth,
+      credentials.email.trim(),
+      credentials.senha
+    );
+    return result.user;
+  } catch (error) {
+    const code = typeof error === 'object' && error && 'code' in error ? String(error.code) : '';
+    if (['auth/invalid-credential', 'auth/user-not-found', 'auth/wrong-password'].includes(code)) {
+      throw new Error('E-mail ou senha incorretos. Confira os dados e tente novamente.');
+    }
+    if (code === 'auth/too-many-requests') {
+      throw new Error('Muitas tentativas seguidas. Aguarde alguns minutos e tente novamente.');
+    }
+    if (code === 'auth/network-request-failed') {
+      throw new Error('Não foi possível conectar. Verifique sua internet e tente novamente.');
+    }
+    throw new Error('Não foi possível entrar agora. Tente novamente em instantes.');
+  }
 }
 
 export async function signUp(data: SignupData): Promise<{ user: FirebaseUser; token: string }> {

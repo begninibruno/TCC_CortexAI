@@ -4,8 +4,12 @@ export interface Produto {
   estoque: number;
   preco: number;
   categoria: string;
+  categoriaId?: string | null;
+  linkProduto?: string | null;
   criadoEm: string;
   atualizadoEm: string;
+  proprietarioUid?: string;
+  proprietarioEmail?: string | null;
   sku?: string | null;
   codigoBarras?: string | null;
   precoCusto?: number | null;
@@ -16,7 +20,7 @@ export interface Produto {
   lote?: string | null;
   localizacao?: string | null;
   status?: 'ativo' | 'inativo' | 'descontinuado';
-  tags?: string | null;
+  tags?: string | string[] | null;
   descricao?: string | null;
 }
 
@@ -24,6 +28,9 @@ export interface Categoria {
   id: string;
   nome: string;
   criadoEm: string;
+  atualizadoEm?: string;
+  proprietarioUid?: string;
+  proprietarioEmail?: string | null;
   descricao?: string | null;
   tipoProduto?: 'bebida' | 'comida' | 'eletronico' | 'outro' | null;
   classificacaoBebida?: 'normal' | 'alcoolica' | 'refrigerada' | null;
@@ -34,25 +41,34 @@ export interface Categoria {
   comissaoPorVenda?: number | null;
   ordemExibicao?: number | null;
   status?: 'ativa' | 'inativa';
-  tags?: string | null;
+  tags?: string | string[] | null;
+}
+
+export interface ItemVenda {
+  produtoId: string;
+  nome: string;
+  categoria: string;
+  quantidade: number;
+  precoUnitario: number;
+  subtotal: number;
 }
 
 export interface Venda {
-  id: number;
-  produto: string;
-  quantidade: number;
-  preco: number;
+  id: string;
+  itens: ItemVenda[];
+  quantidadeItens: number;
+  subtotal: number;
+  desconto: number;
   total: number;
-  origem: string;
-  data: string;
-  hora: string;
-  audioLogId?: number | null;
-  usuarioId?: number | null;
-  clienteId?: number | null;
-  desconto?: number;
-  metodoPagamento?: string | null;
-  troco?: number | null;
-  cupomUsado?: string | null;
+  metodoPagamento: 'dinheiro' | 'pix' | 'credito' | 'debito' | 'outro';
+  clienteId?: string | null;
+  clienteNome?: string | null;
+  observacao?: string | null;
+  status: 'concluida' | 'cancelada';
+  proprietarioUid: string;
+  proprietarioEmail?: string | null;
+  criadoEm: string;
+  atualizadoEm: string;
 }
 
 export interface Stats {

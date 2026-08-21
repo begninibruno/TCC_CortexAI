@@ -5,36 +5,11 @@ import {
   Plus, Search, Edit2, Trash2, Package, AlertTriangle,
   Download, X, LayoutGrid, List,
 } from 'lucide-react';
-import { getProdutos, getCategorias, createProduto, updateProduto, deleteProduto, getEstoqueResumo } from '@/lib/api';
+import { getProdutos, getCategorias, createProduto, updateProduto, deleteProduto } from '@/lib/api';
 import { useToast } from '@/lib/context';
 import type { Produto, Categoria } from '@/lib/types';
 import Modal from '@/components/Modal';
 import LoadingSpinner from '@/components/LoadingSpinner';
-
-// ─── LocalStorage helpers ─────────────────────────────────────────────────────
-
-const LS_KEY = 'cortex_produto_extra';
-
-function loadExtras(): Record<string, Partial<Produto>> {
-  try { return JSON.parse(localStorage.getItem(LS_KEY) || '{}'); } catch { return {}; }
-}
-
-function saveExtra(id: string, data: Partial<Produto>) {
-  const all = loadExtras();
-  all[id] = { ...all[id], ...data };
-  localStorage.setItem(LS_KEY, JSON.stringify(all));
-}
-
-function deleteExtra(id: string) {
-  const all = loadExtras();
-  delete all[id];
-  localStorage.setItem(LS_KEY, JSON.stringify(all));
-}
-
-function mergeExtras(produtos: Produto[]): Produto[] {
-  const extras = loadExtras();
-  return produtos.map((p) => ({ ...p, ...(extras[p.id] || {}) }));
-}
 
 // ─── Form initial state ───────────────────────────────────────────────────────
 
@@ -145,9 +120,19 @@ export default function EstoquePage() {
   const PAGE_SIZE = 12;
 
   const load = useCallback(async () => {
+    setLoading(true);
     try {
-      const [prods, cats, resumo] = await Promise.all([getProdutos(), getCategorias(), getEstoqueResumo()]);
-      setProdutos(mergeExtras(prods)); setCategorias(cats); setEstoqueResumo(resumo);
+      const [prods, cats] = await Promise.all([getProdutos(), getCategorias()]);
+      const resumo = prods.reduce((current, produto) => {
+        const estoque = Number(produto.estoque) || 0;
+        const custo = Number(produto.precoCusto ?? produto.preco) || 0;
+        current.totalItens += estoque;
+        current.valorTotalCusto += estoque * custo;
+        current.produtosCadastrados += 1;
+        if (estoque <= 0) current.semEstoque += 1;
+        return current;
+      }, { totalItens: 0, valorTotalCusto: 0, produtosCadastrados: 0, semEstoque: 0 });
+      setProdutos(prods); setCategorias(cats); setEstoqueResumo(resumo);
     } catch { addToast('error', 'Erro ao carregar produtos'); }
     finally { setLoading(false); }
   }, [addToast]);
@@ -157,22 +142,26 @@ export default function EstoquePage() {
   useEffect(() => {
     const m = calcMargem(form.precoCusto, form.preco);
     if (m !== form.margemLucro) { setForm((f) => ({ ...f, margemLucro: m })); }
-  }, [form.precoCusto, form.preco]); // intentionally omit form.margemLucro
+  }, [form.margemLucro, form.precoCusto, form.preco]);
 
   const filtered = useMemo(() => produtos.filter((p) => {
     const q = search.toLowerCase();
-    return (!q || p.nome.toLowerCase().includes(q) || (p.sku || '').toLowerCase().includes(q) || p.categoria.toLowerCase().includes(q))
+    return (!q || p.nome.toLowerCase().includes(q) || (p.sku || '').toLowerCase().includes(q) || (p.categoria || '').toLowerCase().includes(q))
       && (!filterCat || p.categoria === filterCat) && (!filterStatus || (p.status || 'ativo') === filterStatus);
   }), [produtos, search, filterCat, filterStatus]);
 
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const lowStockItems = useMemo(() => produtos.filter((p) => p.estoqueMinimo && p.estoque < p.estoqueMinimo), [produtos]);
+
+  useEffect(() => {
+    setPage((current) => Math.min(current, totalPages));
+  }, [totalPages]);
 
   function openAdd() { setEditProduto(null); setForm(EMPTY_FORM); setShowModal(true); }
   function openEdit(p: Produto) {
     setEditProduto(p);
-    setForm({ nome: p.nome, sku: p.sku || '', codigoBarras: p.codigoBarras || '', categoria: p.categoria, estoque: String(p.estoque), precoCusto: p.precoCusto ? String(p.precoCusto) : '', preco: String(p.preco), margemLucro: p.margemLucro ? String(p.margemLucro) : '', estoqueMinimo: p.estoqueMinimo ? String(p.estoqueMinimo) : '', fornecedor: p.fornecedor || '', validade: p.validade || '', lote: p.lote || '', localizacao: p.localizacao || '', status: p.status || 'ativo', descricao: p.descricao || '', tags: typeof p.tags === 'string' ? p.tags : (p.tags || []).join(', ') });
+    setForm({ nome: p.nome, sku: p.sku || '', codigoBarras: p.codigoBarras || '', categoria: p.categoria, estoque: String(p.estoque), precoCusto: p.precoCusto != null ? String(p.precoCusto) : '', preco: String(p.preco), margemLucro: p.margemLucro != null ? String(p.margemLucro) : '', estoqueMinimo: p.estoqueMinimo != null ? String(p.estoqueMinimo) : '', fornecedor: p.fornecedor || '', validade: p.validade || '', lote: p.lote || '', localizacao: p.localizacao || '', status: p.status || 'ativo', descricao: p.descricao || '', tags: typeof p.tags === 'string' ? p.tags : (p.tags || []).join(', ') });
     setShowModal(true);
   }
 
@@ -184,10 +173,10 @@ export default function EstoquePage() {
     if (isNaN(estoqueNum) || estoqueNum < 0) { addToast('error', 'Estoque inválido'); return; }
     if (isNaN(precoNum) || precoNum < 0) { addToast('error', 'Preço inválido'); return; }
     setSaving(true);
-    const productData = { nome: form.nome.trim(), estoque: estoqueNum, preco: precoNum, categoria: form.categoria, sku: form.sku || undefined, codigoBarras: form.codigoBarras || undefined, precoCusto: form.precoCusto ? parseFloat(form.precoCusto) : undefined, estoqueMinimo: form.estoqueMinimo ? parseInt(form.estoqueMinimo) : undefined, fornecedor: form.fornecedor || undefined, validade: form.validade || undefined, lote: form.lote || undefined, localizacao: form.localizacao || undefined, status: form.status, descricao: form.descricao || undefined, tags: form.tags || undefined };
+    const productData = { nome: form.nome.trim(), estoque: estoqueNum, preco: precoNum, categoria: form.categoria, sku: form.sku || undefined, codigoBarras: form.codigoBarras || undefined, precoCusto: form.precoCusto ? parseFloat(form.precoCusto) : undefined, margemLucro: form.margemLucro ? parseFloat(form.margemLucro) : undefined, estoqueMinimo: form.estoqueMinimo ? parseInt(form.estoqueMinimo) : undefined, fornecedor: form.fornecedor || undefined, validade: form.validade || undefined, lote: form.lote || undefined, localizacao: form.localizacao || undefined, status: form.status, descricao: form.descricao || undefined, tags: form.tags.split(',').map((tag) => tag.trim()).filter(Boolean) };
     try {
-      if (editProduto) { await updateProduto({ ...productData, nome: editProduto.nome }); deleteExtra(editProduto.id); addToast('success', 'Produto atualizado!'); }
-      else { const created = await createProduto(productData); if (created) deleteExtra(created.id); addToast('success', 'Produto criado!'); }
+      if (editProduto) { await updateProduto({ ...productData, id: editProduto.id }); addToast('success', 'Produto atualizado no Firebase!'); }
+      else { await createProduto(productData); addToast('success', 'Produto criado no Firebase!'); }
       setShowModal(false); load();
     } catch (e: unknown) { addToast('error', e instanceof Error ? e.message : 'Erro ao salvar produto'); }
     finally { setSaving(false); }
@@ -195,18 +184,31 @@ export default function EstoquePage() {
 
   async function handleDelete() {
     if (!deleteTarget) return; setDeleting(true);
-    try { await deleteProduto(deleteTarget.id); deleteExtra(deleteTarget.id); addToast('success', 'Produto excluído!'); setDeleteTarget(null); load(); }
+    try { await deleteProduto(deleteTarget.id); addToast('success', 'Produto excluído!'); setDeleteTarget(null); load(); }
     catch { addToast('error', 'Erro ao excluir produto'); }
     finally { setDeleting(false); }
   }
 
   function exportCSV() {
-    const rows = [['Nome', 'SKU', 'Categoria', 'Estoque', 'Preço', 'Status'].join(','), ...filtered.map((p) => [p.nome, p.sku || '', p.categoria, p.estoque, p.preco, p.status || 'ativo'].join(','))].join('\n');
-    const a = document.createElement('a'); a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(rows); a.download = 'estoque.csv'; a.click();
+    const cell = (value: unknown) => {
+      const raw = String(value ?? '');
+      const safe = /^[=+\-@]/.test(raw) ? `'${raw}` : raw;
+      return `"${safe.replace(/"/g, '""')}"`;
+    };
+    const rows = [
+      ['Nome', 'SKU', 'Categoria', 'Estoque', 'Preço', 'Status'].map(cell).join(';'),
+      ...filtered.map((produto) => [produto.nome, produto.sku, produto.categoria, produto.estoque, produto.preco, produto.status || 'ativo'].map(cell).join(';')),
+    ].join('\r\n');
+    const url = URL.createObjectURL(new Blob([`\uFEFF${rows}`], { type: 'text/csv;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'estoque.csv';
+    link.click();
+    URL.revokeObjectURL(url);
   }
 
   return (
-    <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6">
+    <div className="dashboard-page max-w-7xl space-y-6">
       {estoqueResumo && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-200 dark:border-slate-700 shadow-sm"><p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Total em Estoque</p><p className="text-2xl font-black text-slate-900 dark:text-slate-100">{estoqueResumo.totalItens.toLocaleString('pt-BR')}</p><p className="text-xs text-slate-400">unidades</p></div>
@@ -218,12 +220,12 @@ export default function EstoquePage() {
 
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <div className="flex items-center gap-2 mb-1"><span className="bg-indigo-600 text-white text-[10px] font-black px-2 py-0.5 rounded">ESTOQUE</span><h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100">Gestão de Produtos</h1></div>
+          <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100 md:text-3xl">Estoque</h1>
           <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">{produtos.length} produto{produtos.length !== 1 ? 's' : ''} cadastrado{produtos.length !== 1 ? 's' : ''}</p>
         </div>
         <div className="flex items-center gap-3 bg-white dark:bg-slate-800 p-2 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
           <button onClick={exportCSV} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all border border-slate-200 dark:border-slate-600"><Download className="w-4 h-4" />CSV</button>
-          <button onClick={openAdd} className="flex items-center gap-2 px-5 py-2 rounded-lg bg-slate-900 dark:bg-indigo-600 text-white text-sm font-black uppercase tracking-widest hover:bg-slate-800 dark:hover:bg-indigo-700 transition-all active:scale-95"><Plus className="w-4 h-4" />NOVO PRODUTO</button>
+          <button onClick={openAdd} className="flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2 text-sm font-bold text-white shadow-sm hover:bg-blue-700"><Plus className="h-4 w-4" />Novo produto</button>
         </div>
       </div>
 

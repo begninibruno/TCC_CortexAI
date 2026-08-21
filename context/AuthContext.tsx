@@ -15,32 +15,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Escutar mudanças de autenticação no Firebase
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
-      if (firebaseUser) {
-        // Usuário autenticado
-        const idToken = await firebaseUser.getIdToken();
-        const appUser: User = {
-          id: firebaseUser.uid,
-          nome: firebaseUser.displayName || 'Usuário',
-          email: firebaseUser.email || '',
-        };
+      try {
+        if (firebaseUser) {
+          const idToken = await firebaseUser.getIdToken();
+          const appUser: User = {
+            id: firebaseUser.uid,
+            nome: firebaseUser.displayName || 'Usuário',
+            email: firebaseUser.email || '',
+          };
 
-        setUser(appUser);
-        setToken(idToken);
-
-        // Salvar no localStorage para persistência entre recarregamentos
-        localStorage.setItem('@CortexAI:token', idToken);
-        localStorage.setItem('@CortexAI:user', JSON.stringify(appUser));
-        localStorage.setItem('@CortexAI:uid', firebaseUser.uid);
-      } else {
-        // Usuário não autenticado
+          setUser(appUser);
+          setToken(idToken);
+          localStorage.setItem('@CortexAI:token', idToken);
+          localStorage.setItem('@CortexAI:user', JSON.stringify(appUser));
+          localStorage.setItem('@CortexAI:uid', firebaseUser.uid);
+        } else {
+          setUser(null);
+          setToken(null);
+          localStorage.removeItem('@CortexAI:token');
+          localStorage.removeItem('@CortexAI:user');
+          localStorage.removeItem('@CortexAI:uid');
+        }
+      } catch {
         setUser(null);
         setToken(null);
         localStorage.removeItem('@CortexAI:token');
         localStorage.removeItem('@CortexAI:user');
         localStorage.removeItem('@CortexAI:uid');
+      } finally {
+        setIsLoading(false);
       }
-
-      setIsLoading(false);
     });
 
     // Cleanup

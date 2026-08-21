@@ -14,7 +14,7 @@ const PLAN_LABELS = {
   cortexpro: 'CortexPro',
 } as const;
 
-export default function ProfileMenu() {
+export default function ProfileMenu({ compact = false }: { compact?: boolean }) {
   const { user } = useAuth();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -37,6 +37,15 @@ export default function ProfileMenu() {
   }, []);
 
   useEffect(() => {
+    if (!open) return;
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') setOpen(false);
+    }
+    document.addEventListener('keydown', closeOnEscape);
+    return () => document.removeEventListener('keydown', closeOnEscape);
+  }, [open]);
+
+  useEffect(() => {
     function closeOnOutsideClick(event: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) setOpen(false);
     }
@@ -48,24 +57,30 @@ export default function ProfileMenu() {
   const initial = user.nome.trim().charAt(0).toUpperCase() || 'C';
 
   return (
-    <div ref={menuRef} className="fixed right-4 top-4 z-30 sm:right-6 sm:top-5">
+    <div ref={menuRef} className="relative">
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        className="flex min-h-12 items-center gap-2 rounded-2xl border border-slate-200 bg-white py-1.5 pl-1.5 pr-3 text-left shadow-lg shadow-slate-900/10 transition hover:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900"
+        className={`group flex min-h-12 w-full items-center rounded-xl border border-transparent text-left transition-colors hover:border-slate-200 hover:bg-white dark:hover:border-slate-700 dark:hover:bg-slate-900 ${compact ? 'justify-center p-1' : 'gap-3 px-2 py-1.5'}`}
         aria-expanded={open}
+        aria-haspopup="menu"
         aria-label="Abrir menu de perfil"
+        title={compact ? `${user.nome} — ${PLAN_LABELS[plan]}` : undefined}
       >
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#1f58f5] text-sm font-bold text-white shadow-sm ring-2 ring-blue-100 dark:ring-blue-950">{initial}</span>
-        <span className="hidden min-w-0 sm:block">
-          <span className="block max-w-36 truncate text-sm font-bold text-slate-900 dark:text-white">{user.nome}</span>
-          <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-blue-700 dark:text-blue-300">{PLAN_LABELS[plan]}</span>
-        </span>
-        <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-sm font-bold text-white shadow-sm shadow-blue-600/20">{initial}</span>
+        {!compact && (
+          <>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-bold text-slate-900 dark:text-white">{user.nome}</span>
+              <span className="block truncate text-[10px] font-semibold uppercase tracking-[0.14em] text-blue-700 dark:text-blue-300">{PLAN_LABELS[plan]}</span>
+            </span>
+            <ChevronDown className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+          </>
+        )}
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-72 overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-xl shadow-slate-900/15 dark:border-slate-700 dark:bg-slate-900">
+        <div role="menu" className={`absolute z-50 w-[min(18rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-xl shadow-slate-900/15 dark:border-slate-700 dark:bg-slate-900 ${compact ? 'bottom-0 left-[calc(100%+0.75rem)]' : 'bottom-[calc(100%+0.75rem)] left-0'}`}>
           <div className="flex items-center gap-3 border-b border-slate-100 px-3 py-3 dark:border-slate-800">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#1f58f5] text-sm font-bold text-white">{initial}</span>
             <div className="min-w-0">
@@ -79,6 +94,7 @@ export default function ProfileMenu() {
           </div>
           <button
             type="button"
+            role="menuitem"
             onClick={() => { setOpen(false); router.push('/Dashboard/Config'); }}
             className="mt-1 flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-700 dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:text-white"
           >
@@ -87,7 +103,8 @@ export default function ProfileMenu() {
           </button>
           <button
             type="button"
-            onClick={() => { setOpen(false); logout(); }}
+            role="menuitem"
+            onClick={() => { setOpen(false); void logout(); }}
             className="mt-1 flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
           >
             <LogOut className="h-4 w-4" />

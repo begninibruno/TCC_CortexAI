@@ -2,9 +2,11 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
+import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { signInDirect } from '@/lib/authClient';
-import { Eye, EyeOff, Lock, Mail, Shield, CheckCircle } from 'lucide-react';
+import { ArrowRight, CheckCircle, Eye, EyeOff, Lock, Mail, Shield } from 'lucide-react';
 
 type FormErrors = { email?: string; senha?: string; geral?: string };
 
@@ -75,13 +77,13 @@ export default function PaginaLogin() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 flex">
+    <div className="flex min-h-[100dvh] bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
       {/* Left Side */}
       <div className="hidden lg:flex lg:w-1/2 flex-col justify-between p-12">
         <div>
           <div className="flex items-center gap-4 mb-12">
             <div className="flex h-16 w-16 items-center justify-center rounded-[1.5rem] bg-slate-100/80 border border-slate-200/70 shadow-2xl shadow-slate-900/10 ring-1 ring-slate-900/10 dark:bg-slate-900/80 dark:border-slate-700 dark:shadow-none">
-              <img src="/logo.png" alt="Cortex AI" className="h-10 w-10 object-contain" />
+              <Image src="/logo.png" alt="CortexAI" width={40} height={40} priority />
             </div>
             <div>
               <div className="text-base uppercase tracking-[0.35em] font-semibold text-slate-900 dark:text-white">CortexAI</div>
@@ -110,9 +112,13 @@ export default function PaginaLogin() {
       </div>
 
       {/* Right Side */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-4 sm:p-6">
+      <div className="flex w-full items-center justify-center px-4 py-20 sm:p-6 lg:w-1/2">
         <div className="w-full max-w-md">
-          <div className="bg-white rounded-3xl p-8 shadow-2xl border border-slate-200/80 dark:bg-slate-900 dark:border-slate-800">
+          <div className="rounded-3xl border border-slate-200/80 bg-white p-6 shadow-2xl shadow-slate-900/10 dark:border-slate-800 dark:bg-slate-900 sm:p-8">
+            <Link href="/" className="mb-7 flex items-center gap-3 lg:hidden" aria-label="Voltar para a página inicial">
+              <span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800"><Image src="/logo.png" alt="" width={30} height={30} /></span>
+              <span><span className="block font-extrabold text-slate-950 dark:text-white">CortexAI</span><span className="block text-xs text-slate-500 dark:text-slate-400">Acesso ao painel</span></span>
+            </Link>
             {/* Header */}
             <div className="mb-8">
               <h1 className="text-3xl font-bold text-slate-950 dark:text-white mb-2">Bem-vindo de volta</h1>
@@ -121,7 +127,7 @@ export default function PaginaLogin() {
 
             {/* Error message */}
             {erros.geral && (
-              <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+              <div role="alert" className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
                 {erros.geral}
               </div>
             )}
@@ -130,11 +136,16 @@ export default function PaginaLogin() {
             <form onSubmit={handleSubmit} className="space-y-5">
               {/* Email */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">E-mail</label>
+                <label htmlFor="login-email" className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">E-mail</label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-3.5 w-5 h-5 text-slate-400 dark:text-slate-500" />
                   <input
                     type="email"
+                    id="login-email"
+                    name="email"
+                    autoComplete="email"
+                    autoFocus
+                    aria-invalid={Boolean(erros.email)}
                     value={formData.email}
                     onChange={(e) => {
                       setFormData({ ...formData, email: e.target.value });
@@ -150,11 +161,15 @@ export default function PaginaLogin() {
 
               {/* Senha */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Senha</label>
+                <label htmlFor="login-password" className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Senha</label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-3.5 w-5 h-5 text-slate-400 dark:text-slate-500" />
                   <input
                     type={mostrarSenha ? 'text' : 'password'}
+                    id="login-password"
+                    name="password"
+                    autoComplete="current-password"
+                    aria-invalid={Boolean(erros.senha)}
                     value={formData.senha}
                     onChange={(e) => {
                       setFormData({ ...formData, senha: e.target.value });
@@ -167,6 +182,7 @@ export default function PaginaLogin() {
                   <button
                     type="button"
                     onClick={() => setMostrarSenha(!mostrarSenha)}
+                    aria-label={mostrarSenha ? 'Ocultar senha' : 'Mostrar senha'}
                     className="absolute right-3 top-3.5 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300"
                   >
                     {mostrarSenha ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
@@ -179,10 +195,10 @@ export default function PaginaLogin() {
               <button
                 type="submit"
                 disabled={carregando}
-                className="w-full py-3 bg-gray-900 hover:bg-gray-800 text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 font-semibold text-white shadow-sm hover:bg-blue-700 disabled:opacity-50"
               >
                 {carregando ? 'Acessando...' : 'Acessar dashboard'}
-                {!carregando && <span>→</span>}
+                {!carregando && <ArrowRight className="h-4 w-4" />}
               </button>
             </form>
 
@@ -190,12 +206,12 @@ export default function PaginaLogin() {
             <div className="my-6 border-t border-gray-200" />
 
             {/* Sign up link */}
-            <button
-              onClick={() => router.push('/Cadastro')}
-              className="w-full py-3 border-2 border-slate-900 text-slate-900 font-semibold rounded-lg transition-colors hover:bg-slate-900 hover:text-white dark:border-slate-200 dark:text-slate-100 dark:hover:bg-slate-800"
+            <Link
+              href="/Cadastro"
+              className="block w-full rounded-xl border border-slate-300 py-3 text-center font-semibold text-slate-800 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-800"
             >
               Criar nova conta
-            </button>
+            </Link>
 
             {/* Footer */}
             <div className="mt-6 flex items-center justify-center gap-4 text-sm">

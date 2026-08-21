@@ -7,7 +7,9 @@
   ShieldCheck,
   Zap,
 } from 'lucide-react';
+import Image from 'next/image';
 import Link from 'next/link';
+import ThemeToggle from '@/components/ThemeToggle';
 
 type StepCardProps = {
   number: string;
@@ -16,6 +18,7 @@ type StepCardProps = {
 };
 
 type PriceCardProps = {
+  id: string;
   tier: string;
   price: string;
   features: string[];
@@ -53,20 +56,23 @@ const steps = [
 
 const plans = [
   {
-    tier: 'Starter',
+    id: 'cortexmini',
+    tier: 'CortexMini',
     price: '59,90',
     features: ['Controle de estoque', 'Gestão de clientes', 'Relatórios mensais'],
   },
   {
-    tier: 'Pro',
+    id: 'cortex',
+    tier: 'Cortex',
     price: '99,90',
     featured: true,
-    features: ['Tudo do plano Starter', '1 dispositivo MiniCortex AI', 'IA personalizada', 'Suporte'],
+    features: ['Tudo do CortexMini', '1 dispositivo MiniCortex AI', 'IA personalizada', 'Suporte'],
   },
   {
-    tier: 'Enterprise',
+    id: 'cortexpro',
+    tier: 'CortexPro',
     price: '199,90',
-    features: ['Tudo do plano Pro', '1 dispositivo Cortex AI', 'API de dados', 'Suporte VIP'],
+    features: ['Tudo do Cortex', '1 dispositivo Cortex AI', 'API de dados', 'Suporte VIP'],
   },
 ];
 
@@ -81,27 +87,23 @@ const faqs = [
   },
   {
     q: 'O hardware tem garantia?',
-    a: 'Sim, fornecemos garantia total e substituição imediata em planos Pro e Enterprise.',
+    a: 'Sim, fornecemos garantia total e substituição imediata nos planos Cortex e CortexPro.',
   },
 ];
 
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 text-slate-950 selection:bg-blue-100 dark:from-slate-950 dark:via-slate-900 dark:to-[#020617] dark:text-white">
-      <nav className="fixed top-0 w-full z-50 border-b border-slate-200/60 bg-white/85 backdrop-blur-md text-slate-950 dark:border-white/10 dark:bg-[#0A1A2F]/90 dark:text-white">
-        <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-6">
-          <div className="flex items-center gap-4">
-            <div className="flex h-16 w-16 items-center justify-center rounded-[1.5rem] border border-slate-200/80 bg-slate-100/90 shadow-2xl shadow-slate-900/10 ring-1 ring-slate-900/10 dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-none">
-              <img src="/logo.png" alt="Cortex AI" className="h-10 w-10 object-contain" />
-            </div>
-            <div>
-              <div className="text-sm font-semibold uppercase tracking-[0.35em] text-slate-600 dark:text-slate-300">
-                CortexAI
-              </div>
-            </div>
-          </div>
+      <nav className="fixed top-0 z-40 w-full border-b border-slate-200/70 bg-white/90 text-slate-950 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/90 dark:text-white" aria-label="Navegação principal">
+        <div className="mx-auto flex h-18 max-w-7xl items-center justify-between gap-3 px-4 sm:h-20 sm:px-6">
+          <Link href="/" className="flex min-w-0 items-center gap-2.5" aria-label="CortexAI — página inicial">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:h-12 sm:w-12">
+              <Image src="/logo.png" alt="" width={30} height={30} priority />
+            </span>
+            <span className="truncate text-base font-extrabold tracking-tight text-slate-800 dark:text-white sm:text-sm sm:uppercase sm:tracking-[0.28em]">CortexAI</span>
+          </Link>
 
-          <div className="hidden items-center gap-8 text-sm font-bold text-slate-600 md:flex dark:text-slate-300">
+          <div className="hidden items-center gap-8 text-sm font-bold text-slate-600 lg:flex dark:text-slate-300">
             <a href="#como-funciona" className="transition-colors hover:text-blue-500 dark:hover:text-blue-300">
               Como Funciona
             </a>
@@ -113,24 +115,25 @@ export default function LandingPage() {
             </a>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+            <ThemeToggle />
             <Link
               href="/Login"
-              className="text-sm font-bold text-slate-700 transition-colors hover:text-blue-500 dark:text-slate-200 dark:hover:text-blue-300"
+              className="hidden text-sm font-bold text-slate-700 hover:text-blue-600 dark:text-slate-200 dark:hover:text-blue-300 sm:block"
             >
               Entrar
             </Link>
             <Link
               href="/Cadastro"
-              className="rounded-full bg-blue-500 px-5 py-2.5 text-sm font-bold text-white transition-all hover:bg-blue-600 hover:shadow-lg active:scale-95"
+              className="rounded-xl bg-blue-600 px-3 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-blue-700 sm:px-5"
             >
-              Começar Agora
+              <span className="sm:hidden">Começar</span><span className="hidden sm:inline">Começar agora</span>
             </Link>
           </div>
         </div>
       </nav>
 
-      <section className="px-6 pb-20 pt-40">
+      <section className="px-4 pb-20 pt-32 sm:px-6 sm:pt-40">
         <div className="mx-auto grid max-w-7xl items-center gap-12 lg:grid-cols-2">
           <div>
             <span className="mb-6 inline-block rounded-full bg-blue-500/10 px-4 py-1.5 text-xs font-black uppercase tracking-widest text-blue-600 dark:bg-blue-400/10 dark:text-blue-300">
@@ -144,16 +147,16 @@ export default function LandingPage() {
             </p>
             <div className="flex flex-col gap-4 sm:flex-row">
               <Link
-                href="#planos"
+                href="/Cadastro"
                 className="group flex items-center justify-center gap-2 rounded-2xl bg-blue-500 px-8 py-4 text-lg font-black text-white shadow-xl shadow-blue-500/20 transition-all hover:bg-blue-600"
               >
-                Ver Planos <ArrowRight className="transition-transform group-hover:translate-x-1" />
+                Começar agora <ArrowRight className="transition-transform group-hover:translate-x-1" />
               </Link>
               <a
                 href="#como-funciona"
                 className="rounded-2xl bg-slate-950 px-8 py-4 text-lg font-black text-white shadow-lg shadow-slate-900/10 transition-all hover:bg-slate-900 dark:bg-white/10 dark:text-white dark:hover:bg-white/20"
               >
-                Falar com consultor
+                Ver como funciona
               </a>
             </div>
 
@@ -242,6 +245,7 @@ export default function LandingPage() {
             {plans.map((plan) => (
               <PriceCard
                 key={plan.tier}
+                id={plan.id}
                 tier={plan.tier}
                 price={plan.price}
                 featured={plan.featured}
@@ -284,12 +288,12 @@ function StepCard({ number, title, desc }: StepCardProps) {
   );
 }
 
-function PriceCard({ tier, price, features, featured = false }: PriceCardProps) {
+function PriceCard({ id, tier, price, features, featured = false }: PriceCardProps) {
   return (
     <div
-      className={`rounded-[2rem] border p-8 transition-all ${
+      className={`flex h-full flex-col rounded-[2rem] border p-8 transition-all ${
         featured
-          ? 'scale-105 border-blue-400 bg-blue-500 shadow-2xl shadow-blue-500/20'
+          ? 'border-blue-500 bg-blue-600 shadow-2xl shadow-blue-500/20 md:scale-[1.03]'
           : 'border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900'
       }`}
     >
@@ -306,7 +310,7 @@ function PriceCard({ tier, price, features, featured = false }: PriceCardProps) 
           </span>
         )}
       </div>
-      <ul className="mb-8 space-y-4">
+      <ul className="mb-8 flex-1 space-y-4">
         {features.map((feature) => (
           <li
             key={feature}
@@ -316,27 +320,28 @@ function PriceCard({ tier, price, features, featured = false }: PriceCardProps) 
           </li>
         ))}
       </ul>
-      <button
-        className={`w-full rounded-xl py-4 text-xs font-black uppercase tracking-widest transition-all ${
+      <Link
+        href={`/Cadastro?plano=${id}`}
+        className={`w-full rounded-xl py-4 text-center text-xs font-black uppercase tracking-widest transition-all ${
           featured
             ? 'bg-white text-blue-600 hover:bg-blue-50'
             : 'border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'
         }`}
       >
-        Assinar Agora
-      </button>
+        Escolher plano
+      </Link>
     </div>
   );
 }
 
 function FaqItem({ q, a }: FaqItemProps) {
   return (
-    <div className="rounded-2xl border border-slate-200/70 bg-white/80 p-6 shadow-sm transition-all hover:border-blue-400/30 dark:border-slate-700 dark:bg-slate-900/80">
-      <div className="flex items-center justify-between">
+    <details className="group rounded-2xl border border-slate-200/70 bg-white/80 p-6 shadow-sm transition-all open:border-blue-300 dark:border-slate-700 dark:bg-slate-900/80 dark:open:border-blue-800">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 [&::-webkit-details-marker]:hidden">
         <h4 className="font-bold text-slate-950 dark:text-white">{q}</h4>
-        <ChevronDown size={18} className="text-slate-400 transition-transform group-hover:rotate-180" />
-      </div>
+        <ChevronDown size={18} className="shrink-0 text-slate-400 transition-transform group-open:rotate-180" />
+      </summary>
       <p className="mt-4 text-sm font-medium leading-relaxed text-slate-600 dark:text-slate-400">{a}</p>
-    </div>
+    </details>
   );
 }

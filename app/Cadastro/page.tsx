@@ -1,7 +1,9 @@
 // app/cadastro/page.tsx
 'use client';
 import Link from 'next/link';
-import { useState, FormEvent } from 'react';
+import Image from 'next/image';
+import { useEffect, useState, FormEvent } from 'react';
+import { useRouter } from 'next/navigation';
 
 import {
   TrendingUp,
@@ -25,11 +27,12 @@ import {
 
 import Modal from '@/components/Modal';
 import TurnstileCaptcha from '@/components/TurnstileCaptcha';
+import { signInWithToken } from '@/lib/authClient';
 
 const PLANS = [
-  { id: 'cortexmini', name: 'CortexMini', description: 'Para comecar: dados e armazenamento essenciais.', icon: Database },
-  { id: 'cortex', name: 'Cortex', description: 'A capacidade ideal para a operacao diaria da sua empresa.', icon: Sparkles },
-  { id: 'cortexpro', name: 'CortexPro', description: 'Mais memoria, maior capacidade e assistente inteligente.', icon: Bot },
+  { id: 'cortexmini', name: 'CortexMini', description: 'Para começar: dados e armazenamento essenciais.', icon: Database },
+  { id: 'cortex', name: 'Cortex', description: 'A capacidade ideal para a operação diária da sua empresa.', icon: Sparkles },
+  { id: 'cortexpro', name: 'CortexPro', description: 'Mais memória, maior capacidade e assistente inteligente.', icon: Bot },
 ] as const;
 
 type PlanId = (typeof PLANS)[number]['id'];
@@ -48,6 +51,7 @@ type FormDataType = {
 type ErrorsType = Partial<Record<keyof FormDataType, string>> & { geral?: string };
 
 export default function PaginaCadastro() {
+  const router = useRouter();
   const [etapa, setEtapa] = useState(1);
   const [formData, setFormData] = useState<FormDataType>({
     empresa: '',
@@ -63,26 +67,33 @@ export default function PaginaCadastro() {
   const [carregando, setCarregando] = useState(false);
   const [modalOpen, setModalOpen] = useState<'terms' | 'privacy' | null>(null);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [aceitouTermos, setAceitouTermos] = useState(false);
 
-
-
-
+  useEffect(() => {
+    const requestedPlan = new URLSearchParams(window.location.search).get('plano');
+    if (PLANS.some((plan) => plan.id === requestedPlan)) {
+      setFormData((current) => ({ ...current, plano: requestedPlan as PlanId }));
+    }
+  }, []);
   const validarEtapa = () => {
     const novosErros: ErrorsType = {};
 
     if (etapa === 1) {
-      if (!formData.empresa) novosErros.empresa = 'Nome da empresa é obrigatório';
-      if (!formData.responsavel) novosErros.responsavel = 'Nome do responsável é obrigatório';
+      if (!formData.empresa.trim()) novosErros.empresa = 'Nome da empresa é obrigatório';
+      if (!formData.responsavel.trim()) novosErros.responsavel = 'Nome do responsável é obrigatório';
     } else if (etapa === 2) {
       if (!formData.email) {
         novosErros.email = 'E-mail é obrigatório';
       } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
         novosErros.email = 'E-mail inválido';
       }
-      if (!formData.telefone) novosErros.telefone = 'Telefone é obrigatório';
-      
-      // VALIDAÇÃO DO NOVO CAMPO ADICIONADA AQUI
-      if (!formData.identificador) novosErros.identificador = 'CPF ou CNPJ é obrigatório';
+      const telefoneNumeros = formData.telefone.replace(/\D/g, '');
+      if (!telefoneNumeros) novosErros.telefone = 'Telefone é obrigatório';
+      else if (![10, 11].includes(telefoneNumeros.length)) novosErros.telefone = 'Informe um telefone válido com DDD';
+
+      const documentoNumeros = formData.identificador.replace(/\D/g, '');
+      if (!documentoNumeros) novosErros.identificador = 'CPF ou CNPJ é obrigatório';
+      else if (![11, 14].includes(documentoNumeros.length)) novosErros.identificador = 'Informe um CPF ou CNPJ válido';
       
    
     } else if (etapa === 3) {
@@ -90,17 +101,20 @@ export default function PaginaCadastro() {
     } else if (etapa === 4) {
       if (!formData.senha) {
         novosErros.senha = 'Senha é obrigatória';
-      } else if (formData.senha.length < 6) {
-        novosErros.senha = 'Mínimo 6 caracteres';
+      } else if (formData.senha.length < 8) {
+        novosErros.senha = 'Mínimo 8 caracteres';
       }
       if (formData.senha && !isPasswordValid(formData.senha)) {
-        novosErros.senha = 'A senha ainda nao atende aos requisitos';
+        novosErros.senha = 'A senha ainda não atende aos requisitos';
       }
       if (formData.senha !== formData.confirmarSenha) {
         novosErros.confirmarSenha = 'Senhas não coincidem';
       }
       if (process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && !captchaToken) {
-        novosErros.geral = 'Confirme a verificacao humana para continuar';
+        novosErros.geral = 'Confirme a verificação humana para continuar';
+      }
+      if (!aceitouTermos) {
+        novosErros.geral = 'Aceite os Termos de Uso e a Política de Privacidade para continuar';
       }
     }
 
@@ -110,12 +124,14 @@ export default function PaginaCadastro() {
 
   const avancarEtapa = () => {
     if (validarEtapa()) {
-      setEtapa(etapa + 1);
+      setErros({});
+      setEtapa((current) => current + 1);
     }
   };
 
   const voltarEtapa = () => {
-    setEtapa(etapa - 1);
+    setErros({});
+    setEtapa((current) => current - 1);
   };
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
@@ -150,17 +166,8 @@ export default function PaginaCadastro() {
 
       const { token } = await response.json();
 
-      // Usar Firebase para confirmar o login
-      const { signInWithCustomToken } = await import('firebase/auth');
-      const { auth } = await import('@/src/firebase');
-
-      await signInWithCustomToken(auth, token);
-
-      console.log('Cadastro realizado com sucesso');
-
-      setTimeout(() => {
-        window.location.href = '/Dashboard/Produtos';
-      }, 1500);
+      await signInWithToken(token);
+      router.replace('/Dashboard/Produtos');
     } catch (error: unknown) {
       console.error('Cadastro falhou:', error);
       setErros({
@@ -184,10 +191,10 @@ export default function PaginaCadastro() {
 
   const passwordRequirements = [
     { label: 'Pelo menos 8 caracteres', valid: formData.senha.length >= 8 },
-    { label: 'Uma letra maiuscula', valid: /[A-Z]/.test(formData.senha) },
-    { label: 'Uma letra minuscula', valid: /[a-z]/.test(formData.senha) },
+    { label: 'Uma letra maiúscula', valid: /[A-Z]/.test(formData.senha) },
+    { label: 'Uma letra minúscula', valid: /[a-z]/.test(formData.senha) },
     { label: 'Um caractere especial', valid: /[^A-Za-z0-9]/.test(formData.senha) },
-    { label: 'Sem sequencia numerica (ex.: 1234)', valid: !/(0123|1234|2345|3456|4567|5678|6789|7890|9876|8765|7654|6543|5432|4321)/.test(formData.senha) },
+    { label: 'Sem sequência numérica (ex.: 1234)', valid: !/(0123|1234|2345|3456|4567|5678|6789|7890|9876|8765|7654|6543|5432|4321)/.test(formData.senha) },
   ];
 
   function isPasswordValid(password: string) {
@@ -201,7 +208,7 @@ export default function PaginaCadastro() {
   
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 flex">
+    <div className="flex min-h-[100dvh] bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
       {/* Left Side */}
       <div className="hidden lg:flex lg:w-1/2 relative flex-col justify-between p-12">
         {/* Elementos decorativos */}
@@ -213,7 +220,7 @@ export default function PaginaCadastro() {
         <div>
           <div className="flex items-center gap-4 mb-12">
             <div className="flex h-16 w-16 items-center justify-center rounded-[1.5rem] bg-slate-100/80 border border-slate-200/80 shadow-2xl shadow-slate-900/10 ring-1 ring-slate-900/10 dark:bg-slate-900/80 dark:border-slate-700 dark:shadow-none">
-              <img src="/logo.png" alt="Cortex AI" className="h-10 w-10 object-contain" />
+              <Image src="/logo.png" alt="CortexAI" width={40} height={40} priority />
             </div>
             <div>
               <div className="text-base uppercase tracking-[0.35em] font-semibold text-slate-950 dark:text-white">CortexAI</div>
@@ -223,7 +230,7 @@ export default function PaginaCadastro() {
 
           <h2 className="text-5xl font-bold mb-6">
             Crie sua conta<br />
-            <span className="text-blue-400">e entre no controle</span>
+            <span className="text-blue-600 dark:text-blue-400">e entre no controle</span>
           </h2>
           <p className="text-lg text-slate-500 dark:text-slate-400 mb-12 leading-relaxed">
             Cadastre sua empresa e tenha acesso a vendas, estoque e clientes em um só painel.
@@ -255,17 +262,17 @@ export default function PaginaCadastro() {
           </div>
         </div>
 
-        <div className="relative text-blue-200 text-sm">
+        <div className="relative text-sm text-slate-400">
           © 2026 CortexAI. Todos os direitos reservados.
         </div>
       </div>
 
       {/* Right Side */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-4 sm:p-6">
-        <div className="w-full max-w-md bg-slate-100/90 dark:bg-slate-950/95 rounded-3xl p-8 shadow-2xl border border-slate-200/70 dark:border-slate-800">
+      <div className="flex w-full items-center justify-center px-4 py-20 sm:p-6 lg:w-1/2">
+        <div className="w-full max-w-md rounded-3xl border border-slate-200/80 bg-white p-6 shadow-2xl shadow-slate-900/10 dark:border-slate-800 dark:bg-slate-900 sm:p-8">
           <div className="flex items-center gap-3 lg:hidden mb-6">
             <div className="flex h-14 w-14 items-center justify-center rounded-[1.25rem] bg-slate-100 shadow-sm border border-slate-200 dark:bg-slate-900 dark:border-slate-700">
-              <img src="/logo.png" alt="Cortex AI" className="h-8 w-8 object-contain" />
+              <Image src="/logo.png" alt="CortexAI" width={32} height={32} priority />
             </div>
             <div>
               <div className="text-xl font-bold text-slate-950 dark:text-white">CortexAI</div>
@@ -279,7 +286,7 @@ export default function PaginaCadastro() {
           </div>
 
           {erros.geral && (
-            <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+            <div role="alert" className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
               {erros.geral}
             </div>
           )}
@@ -422,7 +429,7 @@ export default function PaginaCadastro() {
               <div>
                 <div className="mb-3">
                   <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Escolha o seu plano</p>
-                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Voce podera mudar de plano mais tarde.</p>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Você poderá mudar de plano mais tarde.</p>
                 </div>
                 <div className="space-y-3">
                   {PLANS.map(({ id, name, description, icon: Icon }) => {
@@ -468,7 +475,7 @@ export default function PaginaCadastro() {
                       value={formData.senha}
                       onChange={(e) => setFormData({...formData, senha: e.target.value})}
                       className="w-full pl-10 pr-3 py-2 border border-slate-300 bg-white text-slate-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
-                      placeholder="Mínimo 6 caracteres"
+                      placeholder="Mínimo 8 caracteres"
                     />
                   </div>
                   {erros.senha && (
@@ -520,18 +527,23 @@ export default function PaginaCadastro() {
               
               {etapa < 4 ? (
                 <button
+                  key="next-step"
                   type="button"
-                  onClick={avancarEtapa}
-                  className="flex-1 bg-[#0A1A2F] text-white py-2 rounded-lg hover:bg-[#1C3B5E] transition-colors flex items-center justify-center gap-2"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    avancarEtapa();
+                  }}
+                  className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-blue-600 py-2 font-semibold text-white hover:bg-blue-700"
                 >
                   Próximo
                   <ChevronRight className="w-4 h-4" />
                 </button>
               ) : (
                 <button
+                  key="submit-registration"
                   type="submit"
                   disabled={carregando}
-                  className="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-blue-600 py-2 font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
                 >
                   {carregando ? (
                     <>
@@ -549,12 +561,13 @@ export default function PaginaCadastro() {
             </div>
 
             {/* Termos */}
-            <div className="flex items-center gap-2">
+            {etapa === 4 && <div className="flex items-start gap-2">
               <input
                 type="checkbox"
                 id="termos"
+                checked={aceitouTermos}
+                onChange={(event) => setAceitouTermos(event.target.checked)}
                 className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 dark:border-slate-700"
-                required
               />
               <label htmlFor="termos" className="text-xs text-slate-600 dark:text-slate-400">
                 Li e aceito os{' '}
@@ -574,7 +587,7 @@ export default function PaginaCadastro() {
                   Política de Privacidade
                 </button>
               </label>
-            </div>
+            </div>}
 
             {/* Login */}
             <p className="text-center text-sm text-slate-600 dark:text-slate-400">
@@ -608,8 +621,8 @@ export default function PaginaCadastro() {
                 <p>Ao aceitar estes termos, você concorda em fornecer informações verdadeiras, manter os dados da empresa e dos clientes atualizados e respeitar as regras de uso do sistema.</p>
               </div>
             ) : (
-              <div className="space-y-4 text-sm text-slate-700">
-                <p className="font-semibold text-slate-900">Política de Privacidade</p>
+              <div className="space-y-4 text-sm text-slate-700 dark:text-slate-300">
+                <p className="font-semibold text-slate-900 dark:text-white">Política de Privacidade</p>
                 <p>Quando você se cadastra, o CortexAI coleta os dados necessários para criar sua conta, validar o acesso e operar o sistema: nome da empresa, e-mail, telefone, CPF/CNPJ e outras informações de contato.</p>
                 <p>Esses dados são usados para autenticação, ativação do serviço, comunicação sobre a conta e suporte técnico. Também podem ser usados para melhorar a experiência e entregar funcionalidades relevantes dentro da plataforma.</p>
                 <p>O CortexAI não compartilha suas informações pessoais com terceiros sem consentimento, exceto quando exigido por lei ou para cumprir obrigações regulatórias.</p>

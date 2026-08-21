@@ -53,24 +53,20 @@ const ThemeContext = createContext<ThemeContextValue>({
 });
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [dark, setDark] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    const stored = localStorage.getItem('theme');
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    return stored ? stored === 'dark' : prefersDark;
-  });
+  const [dark, setDark] = useState(false);
 
   useEffect(() => {
-    document.documentElement.classList.toggle('dark', dark);
-  }, [dark]);
+    const frame = window.requestAnimationFrame(() => {
+      setDark(document.documentElement.classList.contains('dark'));
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
 
   const toggleTheme = useCallback(() => {
-    setDark((prev) => {
-      const next = !prev;
-      localStorage.setItem('theme', next ? 'dark' : 'light');
-      document.documentElement.classList.toggle('dark', next);
-      return next;
-    });
+    const next = !document.documentElement.classList.contains('dark');
+    localStorage.setItem('theme', next ? 'dark' : 'light');
+    document.documentElement.classList.toggle('dark', next);
+    setDark(next);
   }, []);
 
   return (

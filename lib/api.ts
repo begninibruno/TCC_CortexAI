@@ -4,10 +4,13 @@ import { auth, db } from '@/src/firebase';
 import {
   collection,
   addDoc,
+  getDocFromServer,
   getDocs,
+  getDocsFromServer,
   updateDoc,
   deleteDoc,
   doc,
+  runTransaction,
 } from 'firebase/firestore';
 
 const BASE_URL = '';
@@ -31,14 +34,18 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-function getUserUid(): string {
+function getCurrentAccount(): { uid: string; email: string | null } {
   const user = auth.currentUser;
 
   if (!user) {
-    throw new Error('Usuário não autenticado');
+    throw new Error('Sua sessão expirou. Entre novamente para continuar.');
   }
 
-  return user.uid;
+  return { uid: user.uid, email: user.email };
+}
+
+function getUserUid(): string {
+  return getCurrentAccount().uid;
 }
 
 function removeUndefinedFields(data: Record<string, unknown>): Record<string, unknown> {
@@ -64,20 +71,28 @@ export async function getProdutos(): Promise<Produto[]> {
 export async function createProduto(
   data: Record<string, unknown>
 ): Promise<Produto> {
-  const uid = getUserUid();
+  const { uid, email } = getCurrentAccount();
+  const produto = removeUndefinedFields(data);
+  const now = new Date().toISOString();
 
   const docRef = await addDoc(
     collection(db, 'empresas', uid, 'produtos'),
     {
-      ...data,
-      criadoEm: new Date().toISOString(),
-      atualizadoEm: new Date().toISOString(),
+      ...produto,
+      proprietarioUid: uid,
+      proprietarioEmail: email,
+      criadoEm: now,
+      atualizadoEm: now,
     }
   );
 
   return {
     id: docRef.id,
-    ...data,
+    ...produto,
+    proprietarioUid: uid,
+    proprietarioEmail: email,
+    criadoEm: now,
+    atualizadoEm: now,
   } as Produto;
 }
 
@@ -90,10 +105,12 @@ export async function updateProduto(
     throw new Error('ID do produto não informado');
   }
 
+  const produto = { ...data };
+  delete produto.id;
   await updateDoc(
     doc(db, 'empresas', uid, 'produtos', String(data.id)),
     {
-      ...data,
+      ...removeUndefinedFields(produto),
       atualizadoEm: new Date().toISOString(),
     }
   );
@@ -126,20 +143,28 @@ export async function getCategorias(): Promise<Categoria[]> {
 export async function createCategoria(
   data: Record<string, unknown>
 ): Promise<Categoria> {
-  const uid = getUserUid();
+  const { uid, email } = getCurrentAccount();
   const categoria = removeUndefinedFields(data);
+  const now = new Date().toISOString();
 
   const docRef = await addDoc(
     collection(db, 'empresas', uid, 'categorias'),
     {
       ...categoria,
-      criadoEm: new Date().toISOString(),
+      proprietarioUid: uid,
+      proprietarioEmail: email,
+      criadoEm: now,
+      atualizadoEm: now,
     }
   );
 
   return {
     id: docRef.id,
     ...categoria,
+    proprietarioUid: uid,
+    proprietarioEmail: email,
+    criadoEm: now,
+    atualizadoEm: now,
   } as Categoria;
 }
 
@@ -152,10 +177,12 @@ export async function updateCategoria(
     throw new Error('ID da categoria não informado');
   }
 
+  const categoria = { ...data };
+  delete categoria.id;
   await updateDoc(
     doc(db, 'empresas', uid, 'categorias', String(data.id)),
     {
-      ...removeUndefinedFields(data),
+      ...removeUndefinedFields(categoria),
       atualizadoEm: new Date().toISOString(),
     }
   );
@@ -172,37 +199,245 @@ export async function deleteCategoria(
 }
 
 // ═══════════════ Vendas ═══════════════
-export interface VendaInput {
-  produto: string;
-  quantidade: number;
-  preco: number;
-  origem?: string;
-  usuarioId?: number;
-  clienteId?: number;
+export interface NovaVendaInput {
+  itens: Array<{
+    produtoId: string;
+    quantidade: number;
+  }>;
   desconto?: number;
-  metodoPagamento?: string;
-  troco?: number;
-  cupomUsado?: string;
-  audioLogId?: string;
+  metodoPagamento: Venda['metodoPagamento'];
+  clienteId?: string | null;
+  clienteNome?: string | null;
+  observacao?: string | null;
 }
 
-export async function registrarVenda(data: VendaInput): Promise<Venda> {
-  return request<Venda>('/api/venda', { method: 'POST', body: JSON.stringify(data) });
+export async function registrarVenda(data: NovaVendaInput): Promise<Venda> {
+  const { uid, email } = getCurrentAccount();
+  if (!data.itens.length) throw new Error('Adicione pelo menos um produto à venda.');
+
+  const itensAgrupados = Array.from(
+    data.itens.reduce((map, item) => {
+      const quantidade = Math.trunc(Number(item.quantidade));
+      if (!item.produtoId || !Number.isFinite(quantidade) || quantidade <= 0) {
+        throw new Error('A venda possui uma quantidade inválida.');
+      }
+      map.set(item.produtoId, (map.get(item.produtoId) || 0) + quantidade);
+      return map;
+    }, new Map<string, number>())
+  ).map(([produtoId, quantidade]) => ({ produtoId, quantidade }));
+
+  const desconto = Number(data.desconto) || 0;
+  if (desconto < 0) throw new Error('O desconto não pode ser negativo.');
+
+  return runTransaction(db, async (transaction) => {
+    const produtoRefs = itensAgrupados.map((item) => doc(db, 'empresas', uid, 'produtos', item.produtoId));
+    const snapshots = await Promise.all(produtoRefs.map((ref) => transaction.get(ref)));
+    const now = new Date().toISOString();
+
+    const itens = snapshots.map((snapshot, index) => {
+      if (!snapshot.exists()) throw new Error('Um dos produtos selecionados não existe mais.');
+      const produto = snapshot.data() as Partial<Produto>;
+      const quantidade = itensAgrupados[index].quantidade;
+      const precoUnitario = Number(produto.preco);
+      if (!Number.isFinite(precoUnitario) || precoUnitario < 0) {
+        throw new Error(`O produto ${produto.nome || ''} possui preço inválido.`);
+      }
+
+      const estoqueAtual = Number(produto.estoque);
+      if (!Number.isFinite(estoqueAtual) || estoqueAtual < 0) {
+        throw new Error(`Configure o estoque de ${produto.nome || 'um produto selecionado'} antes de vender.`);
+      }
+      if (estoqueAtual < quantidade) {
+        throw new Error(`Estoque insuficiente para ${produto.nome || 'o produto selecionado'}.`);
+      }
+
+      transaction.update(produtoRefs[index], {
+        estoque: estoqueAtual - quantidade,
+        atualizadoEm: now,
+      });
+
+      return {
+        produtoId: snapshot.id,
+        nome: produto.nome || 'Produto',
+        categoria: produto.categoria || 'Sem categoria',
+        quantidade,
+        precoUnitario,
+        subtotal: precoUnitario * quantidade,
+      };
+    });
+
+    const subtotal = itens.reduce((total, item) => total + item.subtotal, 0);
+    if (desconto > subtotal) throw new Error('O desconto não pode ser maior que o subtotal.');
+    const vendaRef = doc(collection(db, 'empresas', uid, 'vendas'));
+    const venda: Venda = {
+      id: vendaRef.id,
+      itens,
+      quantidadeItens: itens.reduce((total, item) => total + item.quantidade, 0),
+      subtotal,
+      desconto,
+      total: subtotal - desconto,
+      metodoPagamento: data.metodoPagamento,
+      clienteId: data.clienteId || null,
+      clienteNome: data.clienteNome?.trim() || null,
+      observacao: data.observacao?.trim() || null,
+      status: 'concluida',
+      proprietarioUid: uid,
+      proprietarioEmail: email,
+      criadoEm: now,
+      atualizadoEm: now,
+    };
+    const vendaPersistida: Partial<Venda> = { ...venda };
+    delete vendaPersistida.id;
+    transaction.set(vendaRef, vendaPersistida);
+    return venda;
+  });
+}
+
+export async function atualizarVenda(vendaId: string, data: NovaVendaInput): Promise<Venda> {
+  const { uid, email } = getCurrentAccount();
+  if (!vendaId) throw new Error('Venda não informada.');
+  if (!data.itens.length) throw new Error('A venda precisa ter pelo menos um produto.');
+
+  const novosItens = Array.from(
+    data.itens.reduce((map, item) => {
+      const quantidade = Math.trunc(Number(item.quantidade));
+      if (!item.produtoId || !Number.isFinite(quantidade) || quantidade <= 0) {
+        throw new Error('A venda possui uma quantidade inválida.');
+      }
+      map.set(item.produtoId, (map.get(item.produtoId) || 0) + quantidade);
+      return map;
+    }, new Map<string, number>())
+  ).map(([produtoId, quantidade]) => ({ produtoId, quantidade }));
+
+  const desconto = Number(data.desconto) || 0;
+  if (desconto < 0) throw new Error('O desconto não pode ser negativo.');
+
+  const vendaAtualizada = await runTransaction(db, async (transaction) => {
+    const vendaRef = doc(db, 'empresas', uid, 'vendas', vendaId);
+    const vendaSnapshot = await transaction.get(vendaRef);
+    if (!vendaSnapshot.exists()) throw new Error('Esta venda não existe mais.');
+    const vendaAnterior = { id: vendaSnapshot.id, ...vendaSnapshot.data() } as Venda;
+    if (!Array.isArray(vendaAnterior.itens) || vendaAnterior.status !== 'concluida') {
+      throw new Error('Esta venda não pode ser editada.');
+    }
+
+    const quantidadesAnteriores = new Map(vendaAnterior.itens.map((item) => [item.produtoId, item.quantidade]));
+    const novasQuantidades = new Map(novosItens.map((item) => [item.produtoId, item.quantidade]));
+    const produtoIds = Array.from(new Set([...quantidadesAnteriores.keys(), ...novasQuantidades.keys()]));
+    const produtoRefs = new Map(produtoIds.map((id) => [id, doc(db, 'empresas', uid, 'produtos', id)]));
+    const produtoSnapshots = await Promise.all(produtoIds.map((id) => transaction.get(produtoRefs.get(id)!)));
+    const produtosPorId = new Map(produtoSnapshots.map((snapshot) => [snapshot.id, snapshot]));
+    const now = new Date().toISOString();
+
+    for (const produtoId of produtoIds) {
+      const snapshot = produtosPorId.get(produtoId)!;
+      const quantidadeAnterior = Number(quantidadesAnteriores.get(produtoId)) || 0;
+      const novaQuantidade = Number(novasQuantidades.get(produtoId)) || 0;
+      if (!snapshot.exists()) {
+        if (novaQuantidade > 0) throw new Error('Um produto desta venda não existe mais e precisa ser removido.');
+        continue;
+      }
+      const produto = snapshot.data() as Partial<Produto>;
+      const estoqueInformado = produto.estoque as unknown;
+      const produtoLegadoSemEstoque = estoqueInformado === undefined || estoqueInformado === null || estoqueInformado === '';
+      const estoqueAtual = produtoLegadoSemEstoque ? 0 : Number(estoqueInformado);
+      if (!Number.isFinite(estoqueAtual) || estoqueAtual < 0) {
+        throw new Error(`Configure o estoque de ${produto.nome || 'um produto selecionado'} antes de editar.`);
+      }
+      const estoqueFinal = estoqueAtual + quantidadeAnterior - novaQuantidade;
+      if (estoqueFinal < 0) {
+        throw new Error(`Estoque insuficiente para aumentar a quantidade de ${produto.nome || 'um produto selecionado'}.`);
+      }
+      transaction.update(produtoRefs.get(produtoId)!, { estoque: estoqueFinal, atualizadoEm: now });
+    }
+
+    const itens = novosItens.map(({ produtoId, quantidade }) => {
+      const snapshot = produtosPorId.get(produtoId)!;
+      if (!snapshot.exists()) throw new Error('Um produto selecionado não existe mais.');
+      const produto = snapshot.data() as Partial<Produto>;
+      const itemAnterior = vendaAnterior.itens.find((item) => item.produtoId === produtoId);
+      const precoUnitario = itemAnterior?.precoUnitario ?? Number(produto.preco);
+      if (!Number.isFinite(precoUnitario) || precoUnitario < 0) {
+        throw new Error(`O produto ${produto.nome || ''} possui preço inválido.`);
+      }
+      return {
+        produtoId,
+        nome: produto.nome || itemAnterior?.nome || 'Produto',
+        categoria: produto.categoria || itemAnterior?.categoria || 'Sem categoria',
+        quantidade,
+        precoUnitario,
+        subtotal: precoUnitario * quantidade,
+      };
+    });
+
+    const subtotal = itens.reduce((total, item) => total + item.subtotal, 0);
+    if (desconto > subtotal) throw new Error('O desconto não pode ser maior que o subtotal.');
+    const vendaAtualizada: Venda = {
+      ...vendaAnterior,
+      itens,
+      quantidadeItens: itens.reduce((total, item) => total + item.quantidade, 0),
+      subtotal,
+      desconto,
+      total: subtotal - desconto,
+      metodoPagamento: data.metodoPagamento,
+      clienteId: data.clienteId || null,
+      clienteNome: data.clienteNome?.trim() || null,
+      observacao: data.observacao?.trim() || null,
+      proprietarioUid: uid,
+      proprietarioEmail: email,
+      atualizadoEm: now,
+    };
+    const vendaPersistida: Partial<Venda> = { ...vendaAtualizada };
+    delete vendaPersistida.id;
+    transaction.update(vendaRef, vendaPersistida);
+    return vendaAtualizada;
+  });
+
+  // Só informa sucesso depois de confirmar que a nova versão chegou ao servidor.
+  // Isso também evita que a tela volte a exibir uma cópia antiga do cache local.
+  const vendaConfirmada = await getDocFromServer(doc(db, 'empresas', uid, 'vendas', vendaId));
+  if (!vendaConfirmada.exists()) throw new Error('Não foi possível confirmar a venda atualizada no Firebase.');
+  const dadosConfirmados = vendaConfirmada.data();
+  if (dadosConfirmados.atualizadoEm !== vendaAtualizada.atualizadoEm) {
+    throw new Error('A alteração não foi confirmada pelo Firebase. Tente salvar novamente.');
+  }
+  return { id: vendaConfirmada.id, ...dadosConfirmados } as Venda;
 }
 
 export async function getHistorico(): Promise<Venda[]> {
-  return request<Venda[]>('/api/historico');
+  const uid = getUserUid();
+  const snapshot = await getDocsFromServer(collection(db, 'empresas', uid, 'vendas'));
+  return snapshot.docs
+    .flatMap((item) => {
+      const data = item.data();
+      return Array.isArray(data.itens) && typeof data.criadoEm === 'string'
+        ? [{ id: item.id, ...data } as Venda]
+        : [];
+    })
+    .sort((a, b) => b.criadoEm.localeCompare(a.criadoEm));
 }
 
 export async function getVendasPaginado(page: number, limit: number, filtros?: {
-  dataInicio?: string; dataFim?: string; origem?: string; produto?: string;
+  dataInicio?: string; dataFim?: string; produto?: string;
 }): Promise<PaginatedResult<Venda>> {
-  const params = new URLSearchParams({ page: String(page), limit: String(limit) });
-  if (filtros?.dataInicio) params.set('dataInicio', filtros.dataInicio);
-  if (filtros?.dataFim) params.set('dataFim', filtros.dataFim);
-  if (filtros?.origem) params.set('origem', filtros.origem);
-  if (filtros?.produto) params.set('produto', filtros.produto);
-  return request<PaginatedResult<Venda>>(`/api/historico?${params}`);
+  const historico = await getHistorico();
+  const filtrado = historico.filter((venda) => {
+    const dataVenda = venda.criadoEm.slice(0, 10);
+    return (!filtros?.dataInicio || dataVenda >= filtros.dataInicio)
+      && (!filtros?.dataFim || dataVenda <= filtros.dataFim)
+      && (!filtros?.produto || venda.itens.some((item) => item.nome.toLowerCase().includes(filtros.produto!.toLowerCase())));
+  });
+  const safeLimit = Math.max(1, limit);
+  const totalPages = Math.max(1, Math.ceil(filtrado.length / safeLimit));
+  const safePage = Math.min(Math.max(1, page), totalPages);
+  return {
+    data: filtrado.slice((safePage - 1) * safeLimit, safePage * safeLimit),
+    total: filtrado.length,
+    page: safePage,
+    totalPages,
+    hasNext: safePage < totalPages,
+    hasPrev: safePage > 1,
+  };
 }
 
 // ═══════════════ Stats & Charts ═══════════════

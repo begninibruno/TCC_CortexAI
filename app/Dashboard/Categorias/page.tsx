@@ -58,16 +58,11 @@ export default function CategoriasPage() {
       addToast('error', 'Informe o nome da categoria.');
       return;
     }
-    if (!form.descricao.trim()) {
-      addToast('error', 'Informe a descrição da categoria.');
-      return;
-    }
-
     setSaving(true);
     try {
       const data = {
         nome,
-        descricao: form.descricao.trim(),
+        descricao: form.descricao.trim() || null,
         tipoProduto: form.tipoProduto || null,
         classificacaoBebida: form.tipoProduto === 'bebida' ? form.classificacaoBebida || null : null,
         icone: form.icone || null,
@@ -81,13 +76,15 @@ export default function CategoriasPage() {
       };
       if (editing) {
         await updateCategoria({ id: editing.id, ...data });
+        await loadCategories();
         addToast('success', 'Categoria atualizada.');
       } else {
-        await createCategoria(data);
-        addToast('success', 'Categoria criada.');
+        const createdCategory = await createCategoria(data);
+        setCategorias((current) => [...current, createdCategory]);
+        addToast('success', 'Categoria cadastrada com sucesso.');
       }
+      setForm(EMPTY_FORM);
       setFormOpen(false);
-      await loadCategories();
     } catch (error) {
       addToast('error', error instanceof Error ? error.message : 'Não foi possível salvar a categoria.');
     } finally {
@@ -100,9 +97,9 @@ export default function CategoriasPage() {
     setDeleting(true);
     try {
       await deleteCategoria(deletingCategory.id);
+      setCategorias((current) => current.filter((category) => category.id !== deletingCategory.id));
       setDeletingCategory(null);
       addToast('success', 'Categoria excluída.');
-      await loadCategories();
     } catch (error) {
       addToast('error', error instanceof Error ? error.message : 'Não foi possível excluir a categoria.');
     } finally {
@@ -111,13 +108,13 @@ export default function CategoriasPage() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 p-4 md:p-8">
+    <div className="dashboard-page space-y-6">
       <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
         <div>
           <h1 className="text-2xl font-black text-slate-900 dark:text-slate-100">Categorias</h1>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Organize os seus produtos por categoria.</p>
         </div>
-        <button onClick={openCreate} className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-indigo-700">
+        <button onClick={openCreate} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-blue-700 sm:w-auto">
           <Plus className="h-4 w-4" /> Nova categoria
         </button>
       </div>
@@ -127,15 +124,18 @@ export default function CategoriasPage() {
       ) : categorias.length === 0 ? (
         <div className="flex h-48 flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-300 text-slate-500 dark:border-slate-700 dark:text-slate-400">
           <Tag className="h-9 w-9" />
-          <p>Nenhuma categoria cadastrada.</p>
+          <p className="font-semibold text-slate-700 dark:text-slate-200">Nenhuma categoria cadastrada</p>
+          <p className="max-w-sm text-center text-sm">Crie categorias para organizar os produtos e facilitar as vendas.</p>
+          <button onClick={openCreate} className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700">Criar categoria</button>
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {categorias.map((category) => (
             <article key={category.id} className="flex min-h-36 flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-              <Tag className="mb-3 h-6 w-6 text-indigo-600" />
+              <span className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl" style={{ backgroundColor: `${category.cor || '#2563eb'}18`, color: category.cor || '#2563eb' }}>{category.icone || <Tag className="h-5 w-5" />}</span>
               <h2 className="truncate font-bold text-slate-900 dark:text-slate-100">{category.nome}</h2>
-              <p className="mt-1 min-h-10 text-sm text-slate-500 dark:text-slate-400">{category.descricao || 'Sem descrição'}</p>
+              <p className="mt-1 min-h-10 text-sm leading-5 text-slate-500 dark:text-slate-400">{category.descricao || 'Sem descrição'}</p>
+              <span className={`mt-3 w-fit rounded-full px-2 py-1 text-[11px] font-semibold ${category.status === 'inativa' ? 'bg-slate-100 text-slate-500 dark:bg-slate-700' : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400'}`}>{category.status === 'inativa' ? 'Inativa' : 'Ativa'}</span>
               <div className="mt-auto flex gap-2 pt-4">
                 <button onClick={() => openEdit(category)} className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-slate-100 py-2 text-xs font-semibold text-slate-700 hover:bg-indigo-100 hover:text-indigo-700 dark:bg-slate-700 dark:text-slate-200">
                   <Edit2 className="h-3.5 w-3.5" /> Editar
@@ -149,10 +149,10 @@ export default function CategoriasPage() {
         </div>
       )}
 
-      <Modal isOpen={formOpen} onClose={() => setFormOpen(false)} title={editing ? 'Editar categoria' : 'Nova categoria'} size="md" footer={<><button onClick={() => setFormOpen(false)} className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 dark:bg-slate-700 dark:text-slate-200">Cancelar</button><button onClick={saveCategory} disabled={saving} className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-60">{saving && <LoadingSpinner size="sm" />}{saving ? 'Salvando...' : 'Salvar'}</button></>}>
+      <Modal isOpen={formOpen} onClose={() => setFormOpen(false)} title={editing ? 'Editar categoria' : 'Nova categoria'} size="md" footer={<><button onClick={() => setFormOpen(false)} className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 dark:bg-slate-700 dark:text-slate-200">Cancelar</button><button onClick={saveCategory} disabled={saving} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-60">{saving && <LoadingSpinner size="sm" />}{saving ? 'Salvando...' : 'Salvar'}</button></>}>
         <div className="space-y-4">
           <div><label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Nome <span className="text-red-600">*</span></label><input autoFocus value={form.nome} onChange={(event) => setForm((current) => ({ ...current, nome: event.target.value }))} className={inputClass} placeholder="Ex.: Bebidas" /></div>
-          <div><label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Descrição <span className="text-red-600">*</span></label><textarea value={form.descricao} onChange={(event) => setForm((current) => ({ ...current, descricao: event.target.value }))} rows={3} className={inputClass} placeholder="Ex.: Produtos para beber" /></div>
+          <div><label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Descrição</label><textarea value={form.descricao} onChange={(event) => setForm((current) => ({ ...current, descricao: event.target.value }))} rows={3} className={inputClass} placeholder="Ex.: Produtos para beber" /></div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div><label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Tipo de produto</label><select value={form.tipoProduto} onChange={(event) => setForm((current) => ({ ...current, tipoProduto: event.target.value, classificacaoBebida: event.target.value === 'bebida' ? current.classificacaoBebida : '' }))} className={inputClass}><option value="">Selecionar...</option><option value="bebida">Bebida</option><option value="comida">Comida</option><option value="eletronico">Eletrônico</option><option value="outro">Outro</option></select></div>
             {form.tipoProduto === 'bebida' && <div><label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Classificação</label><select value={form.classificacaoBebida} onChange={(event) => setForm((current) => ({ ...current, classificacaoBebida: event.target.value }))} className={inputClass}><option value="">Selecionar...</option><option value="normal">Normal</option><option value="alcoolica">Alcoólica</option><option value="refrigerada">Refrigerada</option></select></div>}

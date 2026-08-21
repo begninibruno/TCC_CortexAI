@@ -1,33 +1,26 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import { Moon, Sun } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
-import ProfileMenu from '@/components/ProfileMenu';
+import ThemeToggle from '@/components/ThemeToggle';
 import { AuthProvider } from '@/context/AuthContext';
-import { SidebarProvider, ThemeProvider, ToastProvider, useTheme } from '@/lib/context';
+import { useAuth } from '@/hooks/useAuth';
+import { SidebarProvider, ThemeProvider, ToastProvider } from '@/lib/context';
 
 const HIDE_SIDEBAR_ROUTES = new Set(['/','/Inicial','/Login','/Cadastro']);
 
 function AppShellContent({ children, hideSidebar }: { children: React.ReactNode; hideSidebar: boolean }) {
-  const { dark, toggleTheme } = useTheme();
+  const pathname = usePathname();
+  const { isAuthenticated, isLoading } = useAuth();
+  const showFloatingTheme = pathname === '/Login' || pathname === '/Cadastro';
+  const showDashboardChrome = !hideSidebar && !isLoading && isAuthenticated;
 
   return (
     <div className={hideSidebar ? 'min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100' : 'flex min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100'}>
-      {hideSidebar && (
-        <button
-          type="button"
-          onClick={toggleTheme}
-          aria-label="Alternar modo"
-          className="fixed top-4 right-4 z-50 inline-flex h-11 w-11 items-center justify-center rounded-3xl border border-slate-200 bg-white/90 text-slate-900 shadow-xl shadow-slate-900/10 backdrop-blur transition hover:-translate-y-0.5 dark:border-slate-700 dark:bg-slate-900/90 dark:text-slate-100"
-        >
-          {dark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-        </button>
-      )}
+      {showFloatingTheme && <ThemeToggle className="fixed right-4 top-4 z-50 h-11 w-11 rounded-2xl shadow-lg sm:right-6 sm:top-5" />}
 
-      {!hideSidebar && <Sidebar />}
-      {!hideSidebar && <ProfileMenu />}
-      <main className="flex-1 min-h-screen">{children}</main>
+      {showDashboardChrome && <Sidebar />}
+      <main className="min-h-screen min-w-0 flex-1">{children}</main>
     </div>
   );
 }

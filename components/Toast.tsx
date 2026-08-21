@@ -37,14 +37,17 @@ function ToastItem({ toast }: { toast: ToastMessage }) {
 
   return (
     <div
+      role={toast.type === 'error' ? 'alert' : 'status'}
       className={`flex items-start gap-3 px-4 py-3 rounded-xl shadow-lg border-l-4
         ${c.bg} ${c.border} ${c.text}
-        animate-slideIn min-w-[280px] max-w-[380px]`}
+        animate-slideIn w-full max-w-[380px]`}
     >
       <span className="flex-shrink-0 mt-0.5">{c.icon}</span>
       <p className="flex-1 text-sm font-medium leading-snug">{toast.message}</p>
       <button
+        type="button"
         onClick={() => removeToast(toast.id)}
+        aria-label="Fechar aviso"
         className="flex-shrink-0 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200
           transition-colors"
       >
@@ -58,7 +61,7 @@ export default function Toast() {
   const { toasts } = useToast();
 
   return (
-    <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none">
+    <div className="pointer-events-none fixed inset-x-3 bottom-3 z-[60] flex flex-col items-end gap-2 sm:inset-x-auto sm:bottom-5 sm:right-5 sm:w-[380px]" aria-live="polite" aria-atomic="false">
       {toasts.map((t) => (
         <div key={t.id} className="pointer-events-auto">
           <ToastItem toast={t} />

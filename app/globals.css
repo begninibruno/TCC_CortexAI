@@ -10,7 +10,7 @@
   --text: #0f172a;
   --muted: #475569;
   --border: rgba(15, 23, 42, 0.08);
-  --primary: #3b82f6;
+  --primary: #2563eb;
   --primary-soft: #dbeafe;
   --shadow: 0 35px 120px rgba(15, 23, 42, 0.08);
 }
@@ -23,7 +23,8 @@ html {
 body {
   min-height: 100vh;
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  overflow-x: hidden;
+  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background-color: var(--bg);
   color: var(--text);
   text-rendering: optimizeLegibility;
@@ -50,6 +51,33 @@ html.dark {
 html.dark body {
   background-color: #020617;
   color: #f8fafc;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:not(:disabled),
+[role='button']:not([aria-disabled='true']) {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.42);
+  outline-offset: 3px;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #94a3b8;
 }
 
 html.dark body::before {
@@ -102,8 +130,10 @@ html.dark .glass {
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-/* Smooth transitions — scoped to non-form elements */
-:not(input):not(textarea):not(select) {
+/* Smooth transitions for interactive elements only. */
+a,
+button,
+[role='button'] {
   transition-property: color, background-color, border-color, box-shadow;
   transition-duration: 0.15s;
 }
@@ -119,3 +149,41 @@ html.dark ::-webkit-scrollbar-thumb:hover { background: #1e293b; }
 /* Selection */
 ::selection { background-color: rgba(59, 130, 246, 0.24); color: #0f172a; }
 html.dark ::selection { background-color: rgba(59, 130, 246, 0.35); color: #f8fafc; }
+
+.dashboard-page {
+  width: 100%;
+  max-width: 1536px;
+  margin-inline: auto;
+  padding: 5.5rem 1rem 2.5rem;
+}
+
+.surface-card {
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 12px 36px rgba(15, 23, 42, 0.04);
+}
+
+html.dark .surface-card {
+  border-color: rgba(71, 85, 105, 0.7);
+  background: rgba(15, 23, 42, 0.86);
+  box-shadow: none;
+}
+
+@media (min-width: 768px) {
+  .dashboard-page {
+    padding-inline: 2rem;
+    padding-bottom: 3rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
