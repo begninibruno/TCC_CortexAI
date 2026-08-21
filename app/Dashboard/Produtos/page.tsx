@@ -1,17 +1,22 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Barcode, Plus, Trash2, Link as LinkIcon } from 'lucide-react';
+import { Barcode, Boxes, Plus, Trash2, Link as LinkIcon } from 'lucide-react';
 import { createProduto, deleteProduto, getCategorias, getProdutos } from '@/lib/api';
 import { useToast } from '@/lib/context';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import Modal from '@/components/Modal';
 import type { Categoria, Produto } from '@/lib/types';
+import { formatQuantity, UNIT_OPTIONS, unitShort } from '@/lib/units';
 
 type FormState = {
   nome: string;
   descricao: string;
   preco: string;
+  precoCusto: string;
+  estoque: string;
+  estoqueMinimo: string;
+  unidadeMedida: 'unidade' | 'kg' | 'litro' | 'kit';
   link: string;
   categoria: string;
   status: 'ativo' | 'inativo';
@@ -21,6 +26,10 @@ const INITIAL_FORM: FormState = {
   nome: '',
   descricao: '',
   preco: '',
+  precoCusto: '',
+  estoque: '',
+  estoqueMinimo: '',
+  unidadeMedida: 'unidade',
   link: '',
   categoria: '',
   status: 'ativo',
@@ -94,6 +103,21 @@ export default function ProdutosPage() {
       addToast('error', 'Selecione uma categoria válida.');
       return;
     }
+    const estoque = Number(form.estoque.trim().replace(',', '.'));
+    if (!form.estoque.trim() || !Number.isFinite(estoque) || estoque < 0) {
+      addToast('error', 'Digite um estoque inicial válido.');
+      return;
+    }
+    const precoCusto = form.precoCusto.trim() ? Number(form.precoCusto.trim().replace(',', '.')) : undefined;
+    if (precoCusto !== undefined && (!Number.isFinite(precoCusto) || precoCusto < 0)) {
+      addToast('error', 'Digite um preço de custo válido.');
+      return;
+    }
+    const estoqueMinimo = form.estoqueMinimo.trim() ? Number(form.estoqueMinimo.trim().replace(',', '.')) : undefined;
+    if (estoqueMinimo !== undefined && (!Number.isFinite(estoqueMinimo) || estoqueMinimo < 0)) {
+      addToast('error', 'Digite um estoque mínimo válido.');
+      return;
+    }
     const link = form.link.trim();
     if (link) {
       try {
@@ -111,7 +135,11 @@ export default function ProdutosPage() {
         nome: form.nome.trim(),
         descricao: form.descricao.trim() || undefined,
         preco,
-        estoque: 0,
+        estoque,
+        estoqueMinimo,
+        precoCusto,
+        margemLucro: precoCusto && precoCusto > 0 ? ((preco - precoCusto) / precoCusto) * 100 : undefined,
+        unidadeMedida: form.unidadeMedida,
         categoria: categoriaSelecionada.nome,
         categoriaId: categoriaSelecionada.id,
         linkProduto: link || undefined,
@@ -150,7 +178,7 @@ export default function ProdutosPage() {
             <h1 className="text-2xl md:text-3xl font-black tracking-tight text-slate-900 dark:text-slate-100">Produtos</h1>
           </div>
           <p className="text-slate-500 dark:text-slate-400 text-sm md:text-base">
-            Adicione produtos com nome, descrição, preço, link e categoria. As categorias vêm da página de categorias.
+            Cadastre produtos com preço por unidade, kg, litro ou kit e informe o estoque inicial.
           </p>
         </div>
         <div className="w-full self-start rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:w-auto sm:min-w-52">
@@ -189,7 +217,8 @@ export default function ProdutosPage() {
                     </button>
                   </div>
                   <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
-                    <span className="px-2 py-1 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">{money.format(Number(produto.preco))}</span>
+                    <span className="px-2 py-1 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">{money.format(Number(produto.preco))} / {unitShort(produto.unidadeMedida)}</span>
+                    <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2 py-1 dark:border-slate-700 dark:bg-slate-800"><Boxes className="h-3 w-3" />{formatQuantity(produto.estoque, produto.unidadeMedida)}</span>
                     <span className="px-2 py-1 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">{produto.categoria || 'Sem categoria'}</span>
                     {produto.linkProduto && (
                       <a href={produto.linkProduto} target="_blank" rel="noreferrer" className="block max-w-xs truncate rounded-full border border-blue-100 bg-blue-50 px-2 py-1 text-blue-700 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-300">
@@ -216,8 +245,24 @@ export default function ProdutosPage() {
             <Field label="Descrição">
               <textarea value={form.descricao} onChange={(e) => updateForm('descricao', e.target.value)} rows={3} className={`${inputCls} resize-none`} placeholder="Descrição do produto" />
             </Field>
-            <Field label="Preço (R$)" required>
+            <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Preço de venda (R$)" required>
               <input value={form.preco} onChange={(e) => updateForm('preco', e.target.value)} inputMode="decimal" className={inputCls} placeholder="Ex.: 29,90" />
+            </Field>
+            <Field label="Preço referente a" required>
+              <select value={form.unidadeMedida} onChange={(e) => updateForm('unidadeMedida', e.target.value)} className={inputCls}>
+                {UNIT_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+            </Field>
+            <Field label="Estoque inicial" required>
+              <input value={form.estoque} onChange={(e) => updateForm('estoque', e.target.value)} inputMode="decimal" className={inputCls} placeholder={form.unidadeMedida === 'kg' || form.unidadeMedida === 'litro' ? 'Ex.: 12,5' : 'Ex.: 20'} />
+            </Field>
+            <Field label="Estoque mínimo">
+              <input value={form.estoqueMinimo} onChange={(e) => updateForm('estoqueMinimo', e.target.value)} inputMode="decimal" className={inputCls} placeholder="Ex.: 5" />
+            </Field>
+            </div>
+            <Field label="Preço de custo (R$)">
+              <input value={form.precoCusto} onChange={(e) => updateForm('precoCusto', e.target.value)} inputMode="decimal" className={inputCls} placeholder="Usado para calcular lucro e relatórios" />
             </Field>
             <Field label="Link do produto">
               <input value={form.link} onChange={(e) => updateForm('link', e.target.value)} className={inputCls} placeholder="https://..." />

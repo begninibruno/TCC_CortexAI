@@ -10,6 +10,7 @@ import { useToast } from '@/lib/context';
 import type { Produto, Categoria } from '@/lib/types';
 import Modal from '@/components/Modal';
 import LoadingSpinner from '@/components/LoadingSpinner';
+import { formatQuantity, UNIT_OPTIONS, unitShort } from '@/lib/units';
 
 // ─── Form initial state ───────────────────────────────────────────────────────
 
@@ -17,7 +18,7 @@ const EMPTY_FORM = {
   nome: '', sku: '', codigoBarras: '', categoria: '', estoque: '', precoCusto: '',
   preco: '', margemLucro: '', estoqueMinimo: '', fornecedor: '', validade: '',
   lote: '', localizacao: '', status: 'ativo' as 'ativo' | 'inativo' | 'descontinuado',
-  descricao: '', tags: '',
+  descricao: '', tags: '', unidadeMedida: 'unidade' as 'unidade' | 'kg' | 'litro' | 'kit',
 };
 
 type FormState = typeof EMPTY_FORM;
@@ -74,14 +75,14 @@ function ProdutoCard({ produto, onEdit, onDelete }: { produto: Produto; onEdit: 
       <div>
         <div className="flex justify-between text-xs mb-1">
           <span className="text-slate-500">Estoque</span>
-          <span className={`font-bold ${lowStock ? 'text-red-500' : 'text-slate-700 dark:text-slate-300'}`}>{produto.estoque} un.</span>
+          <span className={`font-bold ${lowStock ? 'text-red-500' : 'text-slate-700 dark:text-slate-300'}`}>{formatQuantity(produto.estoque, produto.unidadeMedida)}</span>
         </div>
         <div className="h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
           <div className={`h-full rounded-full transition-all ${lowStock ? 'bg-red-500' : 'bg-indigo-500'}`} style={{ width: `${stockPct}%` }} />
         </div>
       </div>
       <div className="flex items-center justify-between">
-        <span className="text-lg font-black text-indigo-600 dark:text-indigo-400">R$ {Number(produto.preco).toFixed(2)}</span>
+        <span className="text-lg font-black text-indigo-600 dark:text-indigo-400">R$ {Number(produto.preco).toFixed(2)} <span className="text-xs font-medium text-slate-400">/ {unitShort(produto.unidadeMedida)}</span></span>
         {produto.margemLucro && <span className="text-xs text-emerald-600 font-medium">{Number(produto.margemLucro).toFixed(1)}% margem</span>}
       </div>
       <div className="flex gap-2 pt-1">
@@ -161,7 +162,7 @@ export default function EstoquePage() {
   function openAdd() { setEditProduto(null); setForm(EMPTY_FORM); setShowModal(true); }
   function openEdit(p: Produto) {
     setEditProduto(p);
-    setForm({ nome: p.nome, sku: p.sku || '', codigoBarras: p.codigoBarras || '', categoria: p.categoria, estoque: String(p.estoque), precoCusto: p.precoCusto != null ? String(p.precoCusto) : '', preco: String(p.preco), margemLucro: p.margemLucro != null ? String(p.margemLucro) : '', estoqueMinimo: p.estoqueMinimo != null ? String(p.estoqueMinimo) : '', fornecedor: p.fornecedor || '', validade: p.validade || '', lote: p.lote || '', localizacao: p.localizacao || '', status: p.status || 'ativo', descricao: p.descricao || '', tags: typeof p.tags === 'string' ? p.tags : (p.tags || []).join(', ') });
+    setForm({ nome: p.nome, sku: p.sku || '', codigoBarras: p.codigoBarras || '', categoria: p.categoria, estoque: String(p.estoque), precoCusto: p.precoCusto != null ? String(p.precoCusto) : '', preco: String(p.preco), margemLucro: p.margemLucro != null ? String(p.margemLucro) : '', estoqueMinimo: p.estoqueMinimo != null ? String(p.estoqueMinimo) : '', fornecedor: p.fornecedor || '', validade: p.validade || '', lote: p.lote || '', localizacao: p.localizacao || '', status: p.status || 'ativo', descricao: p.descricao || '', tags: typeof p.tags === 'string' ? p.tags : (p.tags || []).join(', '), unidadeMedida: p.unidadeMedida || 'unidade' });
     setShowModal(true);
   }
 
@@ -169,11 +170,15 @@ export default function EstoquePage() {
 
   async function handleSave() {
     if (!form.nome.trim()) { addToast('error', 'Nome é obrigatório'); return; }
-    const estoqueNum = parseInt(form.estoque); const precoNum = parseFloat(form.preco);
+    const estoqueNum = Number(form.estoque.replace(',', '.')); const precoNum = Number(form.preco.replace(',', '.'));
     if (isNaN(estoqueNum) || estoqueNum < 0) { addToast('error', 'Estoque inválido'); return; }
     if (isNaN(precoNum) || precoNum < 0) { addToast('error', 'Preço inválido'); return; }
+    const custoNum = form.precoCusto ? Number(form.precoCusto.replace(',', '.')) : undefined;
+    const minimoNum = form.estoqueMinimo ? Number(form.estoqueMinimo.replace(',', '.')) : undefined;
+    if (custoNum !== undefined && (!Number.isFinite(custoNum) || custoNum < 0)) { addToast('error', 'Preço de custo inválido'); return; }
+    if (minimoNum !== undefined && (!Number.isFinite(minimoNum) || minimoNum < 0)) { addToast('error', 'Estoque mínimo inválido'); return; }
     setSaving(true);
-    const productData = { nome: form.nome.trim(), estoque: estoqueNum, preco: precoNum, categoria: form.categoria, sku: form.sku || undefined, codigoBarras: form.codigoBarras || undefined, precoCusto: form.precoCusto ? parseFloat(form.precoCusto) : undefined, margemLucro: form.margemLucro ? parseFloat(form.margemLucro) : undefined, estoqueMinimo: form.estoqueMinimo ? parseInt(form.estoqueMinimo) : undefined, fornecedor: form.fornecedor || undefined, validade: form.validade || undefined, lote: form.lote || undefined, localizacao: form.localizacao || undefined, status: form.status, descricao: form.descricao || undefined, tags: form.tags.split(',').map((tag) => tag.trim()).filter(Boolean) };
+    const productData = { nome: form.nome.trim(), estoque: estoqueNum, preco: precoNum, unidadeMedida: form.unidadeMedida, categoria: form.categoria, sku: form.sku || undefined, codigoBarras: form.codigoBarras || undefined, precoCusto: custoNum, margemLucro: form.margemLucro ? Number(form.margemLucro) : undefined, estoqueMinimo: minimoNum, fornecedor: form.fornecedor || undefined, validade: form.validade || undefined, lote: form.lote || undefined, localizacao: form.localizacao || undefined, status: form.status, descricao: form.descricao || undefined, tags: form.tags.split(',').map((tag) => tag.trim()).filter(Boolean) };
     try {
       if (editProduto) { await updateProduto({ ...productData, id: editProduto.id }); addToast('success', 'Produto atualizado no Firebase!'); }
       else { await createProduto(productData); addToast('success', 'Produto criado no Firebase!'); }
@@ -196,8 +201,8 @@ export default function EstoquePage() {
       return `"${safe.replace(/"/g, '""')}"`;
     };
     const rows = [
-      ['Nome', 'SKU', 'Categoria', 'Estoque', 'Preço', 'Status'].map(cell).join(';'),
-      ...filtered.map((produto) => [produto.nome, produto.sku, produto.categoria, produto.estoque, produto.preco, produto.status || 'ativo'].map(cell).join(';')),
+      ['Nome', 'SKU', 'Categoria', 'Estoque', 'Unidade', 'Preço', 'Status'].map(cell).join(';'),
+      ...filtered.map((produto) => [produto.nome, produto.sku, produto.categoria, produto.estoque, unitShort(produto.unidadeMedida), produto.preco, produto.status || 'ativo'].map(cell).join(';')),
     ].join('\r\n');
     const url = URL.createObjectURL(new Blob([`\uFEFF${rows}`], { type: 'text/csv;charset=utf-8' }));
     const link = document.createElement('a');
@@ -208,7 +213,7 @@ export default function EstoquePage() {
   }
 
   return (
-    <div className="dashboard-page max-w-7xl space-y-6">
+    <div className="dashboard-page space-y-6">
       {estoqueResumo && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-200 dark:border-slate-700 shadow-sm"><p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Total em Estoque</p><p className="text-2xl font-black text-slate-900 dark:text-slate-100">{estoqueResumo.totalItens.toLocaleString('pt-BR')}</p><p className="text-xs text-slate-400">unidades</p></div>
@@ -272,8 +277,8 @@ export default function EstoquePage() {
                   <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-200">{p.nome}</td>
                   <td className="px-4 py-3 text-slate-500">{p.sku || '—'}</td>
                   <td className="px-4 py-3">{p.categoria && <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400">{p.categoria}</span>}</td>
-                  <td className={`px-4 py-3 font-bold ${p.estoqueMinimo && p.estoque < p.estoqueMinimo ? 'text-red-500' : 'text-slate-700 dark:text-slate-300'}`}>{p.estoque}</td>
-                  <td className="px-4 py-3 font-bold text-indigo-600 dark:text-indigo-400">R$ {Number(p.preco).toFixed(2)}</td>
+                  <td className={`px-4 py-3 font-bold ${p.estoqueMinimo && p.estoque < p.estoqueMinimo ? 'text-red-500' : 'text-slate-700 dark:text-slate-300'}`}>{formatQuantity(p.estoque, p.unidadeMedida)}</td>
+                  <td className="px-4 py-3 font-bold text-indigo-600 dark:text-indigo-400">R$ {Number(p.preco).toFixed(2)} / {unitShort(p.unidadeMedida)}</td>
                   <td className="px-4 py-3"><StatusBadge status={p.status} /></td>
                   <td className="px-4 py-3"><div className="flex gap-1"><button onClick={() => openEdit(p)} className="p-1.5 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/30 text-slate-400 hover:text-indigo-600 transition-all"><Edit2 className="w-4 h-4" /></button><button onClick={() => setDeleteTarget(p)} className="p-1.5 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 text-slate-400 hover:text-red-600 transition-all"><Trash2 className="w-4 h-4" /></button></div></td>
                 </tr>
@@ -300,8 +305,9 @@ export default function EstoquePage() {
           <FormField label="SKU"><input type="text" value={form.sku} onChange={(e) => setField('sku', e.target.value)} className={inputCls} placeholder="Ex: CERV-001" /></FormField>
           <FormField label="Código de Barras"><input type="text" value={form.codigoBarras} onChange={(e) => setField('codigoBarras', e.target.value)} className={inputCls} placeholder="7891234567890" /></FormField>
           <FormField label="Categoria"><select value={form.categoria} onChange={(e) => setField('categoria', e.target.value)} className={inputCls}><option value="">Selecionar...</option>{categorias.map((c) => <option key={c.id} value={c.nome}>{c.nome}</option>)}</select></FormField>
-          <FormField label="Estoque" required><input type="number" min="0" value={form.estoque} onChange={(e) => setField('estoque', e.target.value)} className={inputCls} placeholder="0" /></FormField>
-          <FormField label="Estoque Mínimo"><input type="number" min="0" value={form.estoqueMinimo} onChange={(e) => setField('estoqueMinimo', e.target.value)} className={inputCls} placeholder="0" /></FormField>
+          <FormField label="Unidade de venda" required><select value={form.unidadeMedida} onChange={(e) => setField('unidadeMedida', e.target.value)} className={inputCls}>{UNIT_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></FormField>
+          <FormField label="Estoque" required><input type="number" min="0" step="0.001" value={form.estoque} onChange={(e) => setField('estoque', e.target.value)} className={inputCls} placeholder="0" /></FormField>
+          <FormField label="Estoque Mínimo"><input type="number" min="0" step="0.001" value={form.estoqueMinimo} onChange={(e) => setField('estoqueMinimo', e.target.value)} className={inputCls} placeholder="0" /></FormField>
           <FormField label="Preço de Custo (R$)"><input type="number" min="0" step="0.01" value={form.precoCusto} onChange={(e) => setField('precoCusto', e.target.value)} className={inputCls} placeholder="0.00" /></FormField>
           <FormField label="Preço de Venda (R$)" required><input type="number" min="0" step="0.01" value={form.preco} onChange={(e) => setField('preco', e.target.value)} className={inputCls} placeholder="0.00" /></FormField>
           <FormField label="Margem de Lucro (%)"><input type="number" value={form.margemLucro} readOnly className={`${inputCls} bg-slate-50 dark:bg-slate-800 cursor-default`} placeholder="Auto-calculado" /></FormField>

@@ -1,4 +1,4 @@
-import type { Produto, Categoria, Venda, Stats, VendasDia, EspStatus, Cliente, Cupom, Notificacao, PaginatedResult } from './types';
+import type { Produto, Categoria, Venda, Stats, VendasDia, EspStatus, Cliente, Cupom, Notificacao, PaginatedResult, Despesa } from './types';
 import { auth, db } from '@/src/firebase';
 
 import {
@@ -52,6 +52,11 @@ function removeUndefinedFields(data: Record<string, unknown>): Record<string, un
   return Object.fromEntries(
     Object.entries(data).filter(([, value]) => value !== undefined)
   );
+}
+
+function normalizeQuantity(value: unknown): number {
+  const quantity = Number(value);
+  return Number.isFinite(quantity) ? Math.round(quantity * 1000) / 1000 : Number.NaN;
 }
 
 // ═══════════════ Produtos ═══════════════
@@ -217,11 +222,11 @@ export async function registrarVenda(data: NovaVendaInput): Promise<Venda> {
 
   const itensAgrupados = Array.from(
     data.itens.reduce((map, item) => {
-      const quantidade = Math.trunc(Number(item.quantidade));
+      const quantidade = normalizeQuantity(item.quantidade);
       if (!item.produtoId || !Number.isFinite(quantidade) || quantidade <= 0) {
         throw new Error('A venda possui uma quantidade inválida.');
       }
-      map.set(item.produtoId, (map.get(item.produtoId) || 0) + quantidade);
+      map.set(item.produtoId, normalizeQuantity((map.get(item.produtoId) || 0) + quantidade));
       return map;
     }, new Map<string, number>())
   ).map(([produtoId, quantidade]) => ({ produtoId, quantidade }));
@@ -252,7 +257,7 @@ export async function registrarVenda(data: NovaVendaInput): Promise<Venda> {
       }
 
       transaction.update(produtoRefs[index], {
-        estoque: estoqueAtual - quantidade,
+        estoque: normalizeQuantity(estoqueAtual - quantidade),
         atualizadoEm: now,
       });
 
@@ -263,6 +268,7 @@ export async function registrarVenda(data: NovaVendaInput): Promise<Venda> {
         quantidade,
         precoUnitario,
         subtotal: precoUnitario * quantidade,
+        unidadeMedida: produto.unidadeMedida || 'unidade',
       };
     });
 
@@ -300,11 +306,11 @@ export async function atualizarVenda(vendaId: string, data: NovaVendaInput): Pro
 
   const novosItens = Array.from(
     data.itens.reduce((map, item) => {
-      const quantidade = Math.trunc(Number(item.quantidade));
+      const quantidade = normalizeQuantity(item.quantidade);
       if (!item.produtoId || !Number.isFinite(quantidade) || quantidade <= 0) {
         throw new Error('A venda possui uma quantidade inválida.');
       }
-      map.set(item.produtoId, (map.get(item.produtoId) || 0) + quantidade);
+      map.set(item.produtoId, normalizeQuantity((map.get(item.produtoId) || 0) + quantidade));
       return map;
     }, new Map<string, number>())
   ).map(([produtoId, quantidade]) => ({ produtoId, quantidade }));
@@ -344,7 +350,7 @@ export async function atualizarVenda(vendaId: string, data: NovaVendaInput): Pro
       if (!Number.isFinite(estoqueAtual) || estoqueAtual < 0) {
         throw new Error(`Configure o estoque de ${produto.nome || 'um produto selecionado'} antes de editar.`);
       }
-      const estoqueFinal = estoqueAtual + quantidadeAnterior - novaQuantidade;
+      const estoqueFinal = normalizeQuantity(estoqueAtual + quantidadeAnterior - novaQuantidade);
       if (estoqueFinal < 0) {
         throw new Error(`Estoque insuficiente para aumentar a quantidade de ${produto.nome || 'um produto selecionado'}.`);
       }
@@ -367,6 +373,7 @@ export async function atualizarVenda(vendaId: string, data: NovaVendaInput): Pro
         quantidade,
         precoUnitario,
         subtotal: precoUnitario * quantidade,
+        unidadeMedida: produto.unidadeMedida || itemAnterior?.unidadeMedida || 'unidade',
       };
     });
 
@@ -438,6 +445,28 @@ export async function getVendasPaginado(page: number, limit: number, filtros?: {
     hasNext: safePage < totalPages,
     hasPrev: safePage > 1,
   };
+}
+
+// ═══════════════ Despesas ═══════════════
+export async function getDespesas(): Promise<Despesa[]> {
+  const uid = getUserUid();
+  const snapshot = await getDocs(collection(db, 'empresas', uid, 'despesas'));
+  return snapshot.docs
+    .map((item) => ({ id: item.id, ...item.data() }) as Despesa)
+    .sort((a, b) => b.data.localeCompare(a.data));
+}
+
+export async function createDespesa(data: Omit<Despesa, 'id' | 'criadoEm' | 'atualizadoEm'>): Promise<Despesa> {
+  const uid = getUserUid();
+  const now = new Date().toISOString();
+  const payload = removeUndefinedFields({ ...data, valor: Number(data.valor), criadoEm: now, atualizadoEm: now });
+  const reference = await addDoc(collection(db, 'empresas', uid, 'despesas'), payload);
+  return { id: reference.id, ...data, valor: Number(data.valor), criadoEm: now, atualizadoEm: now };
+}
+
+export async function deleteDespesa(id: string): Promise<void> {
+  const uid = getUserUid();
+  await deleteDoc(doc(db, 'empresas', uid, 'despesas', id));
 }
 
 // ═══════════════ Stats & Charts ═══════════════

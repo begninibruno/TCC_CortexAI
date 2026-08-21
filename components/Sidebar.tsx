@@ -4,7 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { Boxes, ChevronLeft, ChevronRight, Menu, Package, Settings, ShoppingCart, Tags, Users, X } from 'lucide-react';
+import { BarChart3, Boxes, ChevronLeft, ChevronRight, Menu, Package, Settings, ShoppingCart, Tags, Users, X } from 'lucide-react';
 import { useSidebar } from '@/lib/context';
 import ProfileMenu from '@/components/ProfileMenu';
 import ThemeToggle from '@/components/ThemeToggle';
@@ -15,6 +15,7 @@ const NAV_ITEMS = [
   { label: 'Clientes', href: '/Dashboard/Clientes', icon: Users },
   { label: 'Estoque', href: '/Dashboard/Estoque', icon: Boxes },
   { label: 'Vendas', href: '/Dashboard/Vendas', icon: ShoppingCart },
+  { label: 'Relatórios', href: '/Dashboard/Relatorios', icon: BarChart3 },
   { label: 'Configurações', href: '/Dashboard/Config', icon: Settings },
 ];
 

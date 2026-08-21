@@ -7,14 +7,17 @@ import { ShieldCheck } from 'lucide-react';
 declare global {
   interface Window {
     turnstile?: {
-      render: (element: HTMLElement, options: { sitekey: string; callback: (token: string) => void; 'expired-callback': () => void }) => void;
+      render: (element: HTMLElement, options: { sitekey: string; theme?: 'auto'; size?: 'flexible'; callback: (token: string) => void; 'expired-callback': () => void; 'error-callback': () => void }) => string;
+      reset: (widgetId?: string) => void;
+      remove: (widgetId: string) => void;
     };
   }
 }
 
-export default function TurnstileCaptcha({ onVerify }: { onVerify: (token: string | null) => void }) {
+export default function TurnstileCaptcha({ onVerify, resetKey = 0 }: { onVerify: (token: string | null) => void; resetKey?: number }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const renderedRef = useRef(false);
+  const widgetIdRef = useRef<string | null>(null);
   const id = useId().replace(/:/g, '');
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
@@ -22,10 +25,13 @@ export default function TurnstileCaptcha({ onVerify }: { onVerify: (token: strin
     function renderCaptcha() {
       if (!siteKey || !window.turnstile || !containerRef.current || renderedRef.current) return;
       renderedRef.current = true;
-      window.turnstile.render(containerRef.current, {
+      widgetIdRef.current = window.turnstile.render(containerRef.current, {
         sitekey: siteKey,
+        theme: 'auto',
+        size: 'flexible',
         callback: (token) => onVerify(token),
         'expired-callback': () => onVerify(null),
+        'error-callback': () => onVerify(null),
       });
     }
 
@@ -33,6 +39,13 @@ export default function TurnstileCaptcha({ onVerify }: { onVerify: (token: strin
     window.addEventListener('turnstile-ready', renderCaptcha);
     return () => window.removeEventListener('turnstile-ready', renderCaptcha);
   }, [onVerify, siteKey]);
+
+  useEffect(() => {
+    if (resetKey > 0 && widgetIdRef.current && window.turnstile) {
+      window.turnstile.reset(widgetIdRef.current);
+      onVerify(null);
+    }
+  }, [onVerify, resetKey]);
 
   if (!siteKey) {
     return (
@@ -44,7 +57,7 @@ export default function TurnstileCaptcha({ onVerify }: { onVerify: (token: strin
   }
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
+    <div className="min-w-0 overflow-hidden rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
       <Script
         id={`turnstile-${id}`}
         src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"

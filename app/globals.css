@@ -152,9 +152,9 @@ html.dark ::selection { background-color: rgba(59, 130, 246, 0.35); color: #f8fa
 
 .dashboard-page {
   width: 100%;
-  max-width: 1536px;
-  margin-inline: auto;
-  padding: 5.5rem 1rem 2.5rem;
+  max-width: none;
+  margin: 0;
+  padding: 4.75rem 1rem 2rem;
 }
 
 .surface-card {
@@ -172,8 +172,13 @@ html.dark .surface-card {
 
 @media (min-width: 768px) {
   .dashboard-page {
+    padding: 1.25rem 1.5rem 2.5rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  .dashboard-page {
     padding-inline: 2rem;
-    padding-bottom: 3rem;
   }
 }
 

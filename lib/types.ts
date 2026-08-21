@@ -1,3 +1,5 @@
+export type UnidadeMedida = 'unidade' | 'kg' | 'litro' | 'kit';
+
 export interface Produto {
   id: string;
   nome: string;
@@ -22,6 +24,7 @@ export interface Produto {
   status?: 'ativo' | 'inativo' | 'descontinuado';
   tags?: string | string[] | null;
   descricao?: string | null;
+  unidadeMedida?: UnidadeMedida;
 }
 
 export interface Categoria {
@@ -51,6 +54,7 @@ export interface ItemVenda {
   quantidade: number;
   precoUnitario: number;
   subtotal: number;
+  unidadeMedida?: UnidadeMedida;
 }
 
 export interface Venda {
@@ -137,4 +141,17 @@ export interface PaginatedResult<T> {
   totalPages: number;
   hasNext: boolean;
   hasPrev: boolean;
+}
+
+export interface Despesa {
+  id: string;
+  descricao: string;
+  categoria: 'aluguel' | 'energia' | 'agua' | 'internet' | 'fornecedores' | 'salarios' | 'impostos' | 'marketing' | 'manutencao' | 'transporte' | 'outros';
+  valor: number;
+  data: string;
+  formaPagamento?: 'dinheiro' | 'pix' | 'credito' | 'debito' | 'boleto' | 'transferencia' | 'outro';
+  recorrente?: boolean;
+  observacao?: string | null;
+  criadoEm: string;
+  atualizadoEm: string;
 }

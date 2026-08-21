@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminAuth, getAdminDb, initializeFirebaseAdmin } from '@/lib/firebaseAdmin';
+import { verifyTurnstileToken } from '@/lib/turnstileServer';
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const validPlans = new Set(['cortexmini', 'cortex', 'cortexpro']);
@@ -11,21 +12,6 @@ function isStrongPassword(password: string) {
     && /[a-z]/.test(password)
     && /[^A-Za-z0-9]/.test(password)
     && !weakSequence.test(password);
-}
-
-async function verifyTurnstile(token: string | null) {
-  const secret = process.env.TURNSTILE_SECRET_KEY;
-  if (!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && !secret) return true;
-  if (!secret) return false;
-  if (!token) return false;
-
-  const response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ secret, response: token }),
-  });
-  const result = await response.json() as { success?: boolean };
-  return result.success === true;
 }
 
 export async function POST(req: NextRequest) {
@@ -63,7 +49,9 @@ export async function POST(req: NextRequest) {
     if (!validPlans.has(plano)) {
       return NextResponse.json({ erro: 'Plano selecionado invalido' }, { status: 400 });
     }
-    if (!await verifyTurnstile(typeof captchaToken === 'string' ? captchaToken : null)) {
+    const remoteIp = req.headers.get('cf-connecting-ip') || req.headers.get('x-forwarded-for');
+    const captcha = await verifyTurnstileToken(typeof captchaToken === 'string' ? captchaToken : null, remoteIp);
+    if (!captcha.success) {
       return NextResponse.json({ erro: 'Nao foi possivel confirmar a verificacao humana' }, { status: 400 });
     }
 

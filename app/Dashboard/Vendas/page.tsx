@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   CreditCard,
   ExternalLink,
+  Filter,
   History,
   Minus,
   Package,
@@ -24,6 +25,7 @@ import { atualizarVenda, getClientes, getHistorico, getProdutos, registrarVenda 
 import { useToast } from '@/lib/context';
 import type { Cliente, Produto, Venda } from '@/lib/types';
 import LoadingSpinner from '@/components/LoadingSpinner';
+import { formatQuantity, quantityStep, unitShort } from '@/lib/units';
 
 const money = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const dateTime = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
@@ -38,7 +40,11 @@ const paymentLabels: Record<Venda['metodoPagamento'], string> = {
 
 function availableStock(produto: Produto) {
   const estoque = Number(produto.estoque);
-  return Number.isFinite(estoque) && estoque >= 0 ? Math.trunc(estoque) : 0;
+  return Number.isFinite(estoque) && estoque >= 0 ? Math.round(estoque * 1000) / 1000 : 0;
+}
+
+function roundQuantity(value: number) {
+  return Math.round(value * 1000) / 1000;
 }
 
 function localDateKey(value: string | Date) {
@@ -65,6 +71,10 @@ export default function DashboardVendasPage() {
   const [observacao, setObservacao] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [recentSearch, setRecentSearch] = useState('');
+  const [recentPayment, setRecentPayment] = useState('');
+  const [recentDateFrom, setRecentDateFrom] = useState('');
+  const [recentDateTo, setRecentDateTo] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -102,13 +112,26 @@ export default function DashboardVendasPage() {
     const precoUnitario = editingPrices[id] ?? Number(produto?.preco);
     return produto ? [{ produto, quantidade, precoUnitario, subtotal: precoUnitario * quantidade }] : [];
   }), [cart, editingPrices, produtos]);
-  const quantidadeItens = cartItems.reduce((total, item) => total + item.quantidade, 0);
   const subtotal = cartItems.reduce((total, item) => total + item.subtotal, 0);
   const descontoNumero = Number(desconto.replace(',', '.')) || 0;
   const total = Math.max(0, subtotal - descontoNumero);
   const hoje = localDateKey(new Date());
   const vendasHoje = vendas.filter((venda) => localDateKey(venda.criadoEm) === hoje);
   const faturamentoHoje = vendasHoje.reduce((sum, venda) => sum + Number(venda.total), 0);
+  const recentFiltered = useMemo(() => {
+    const term = recentSearch.trim().toLowerCase();
+    return vendas.filter((venda) => {
+      const date = localDateKey(venda.criadoEm);
+      const matchesSearch = !term
+        || venda.clienteNome?.toLowerCase().includes(term)
+        || venda.itens.some((item) => item.nome.toLowerCase().includes(term));
+      return matchesSearch
+        && (!recentPayment || venda.metodoPagamento === recentPayment)
+        && (!recentDateFrom || date >= recentDateFrom)
+        && (!recentDateTo || date <= recentDateTo);
+    });
+  }, [recentDateFrom, recentDateTo, recentPayment, recentSearch, vendas]);
+  const recentTotal = recentFiltered.reduce((sum, venda) => sum + Number(venda.total || 0), 0);
 
   function maxQuantityForSale(produto: Produto) {
     const quantidadeOriginal = editingVenda?.itens.find((item) => item.produtoId === produto.id)?.quantidade || 0;
@@ -118,11 +141,12 @@ export default function DashboardVendasPage() {
   function addProduct(produto: Produto) {
     const atual = cart[produto.id] || 0;
     const estoque = maxQuantityForSale(produto);
-    if (atual >= estoque) {
+    const step = quantityStep(produto.unidadeMedida);
+    if (atual + step > estoque + 0.0001) {
       addToast('warning', `Não há mais unidades disponíveis de ${produto.nome}.`);
       return;
     }
-    setCart((current) => ({ ...current, [produto.id]: atual + 1 }));
+    setCart((current) => ({ ...current, [produto.id]: roundQuantity(atual + step) }));
   }
 
   function changeQuantity(produto: Produto, next: number) {
@@ -139,7 +163,7 @@ export default function DashboardVendasPage() {
       addToast('warning', `Estoque disponível: ${estoque}.`);
       return;
     }
-    setCart((current) => ({ ...current, [produto.id]: next }));
+    setCart((current) => ({ ...current, [produto.id]: roundQuantity(next) }));
   }
 
   function startEditing(venda: Venda) {
@@ -301,7 +325,7 @@ export default function DashboardVendasPage() {
                         <p className="mt-0.5 truncate text-xs font-medium text-blue-600 dark:text-blue-400">{produto.categoria || 'Sem categoria'}</p>
                       </div>
                       <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-bold ${unavailable ? 'bg-red-50 text-red-600 dark:bg-red-950/30' : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400'}`}>
-                        {`${estoque} em estoque`}
+                        {`${formatQuantity(estoque, produto.unidadeMedida)} em estoque`}
                       </span>
                     </div>
                     <p className="mt-3 line-clamp-2 min-h-10 text-sm text-slate-500 dark:text-slate-400">{produto.descricao || 'Sem descrição informada.'}</p>
@@ -310,7 +334,7 @@ export default function DashboardVendasPage() {
                       {link?.startsWith('http') && <a href={link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-600 hover:underline dark:text-blue-400">Ver produto <ExternalLink className="h-3 w-3" /></a>}
                     </div>
                     <div className="mt-auto flex items-end justify-between gap-3 pt-4">
-                      <div><p className="text-[10px] uppercase tracking-wider text-slate-400">Preço</p><p className="text-xl font-black text-slate-900 dark:text-slate-100">{money.format(Number(produto.preco) || 0)}</p></div>
+                      <div><p className="text-[10px] uppercase tracking-wider text-slate-400">Preço por {unitShort(produto.unidadeMedida)}</p><p className="text-xl font-black text-slate-900 dark:text-slate-100">{money.format(Number(produto.preco) || 0)}</p></div>
                       <button type="button" onClick={() => addProduct(produto)} disabled={unavailable} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-3 py-2 text-sm font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40">
                         <Plus className="h-4 w-4" /> Adicionar
                       </button>
@@ -325,7 +349,7 @@ export default function DashboardVendasPage() {
         <form onSubmit={finishSale} className="rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800 xl:sticky xl:top-24">
           <div className="flex items-center justify-between border-b border-slate-100 p-5 dark:border-slate-700">
             <div className="flex items-center gap-2"><ShoppingCart className="h-5 w-5 text-blue-600" /><h2 className="font-black text-slate-900 dark:text-slate-100">Pedido atual</h2></div>
-            <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">{quantidadeItens} {quantidadeItens === 1 ? 'item' : 'itens'}</span>
+            <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">{cartItems.length} {cartItems.length === 1 ? 'produto' : 'produtos'}</span>
           </div>
 
           <div className="max-h-72 space-y-3 overflow-y-auto p-5">
@@ -333,12 +357,12 @@ export default function DashboardVendasPage() {
               <div className="flex flex-col items-center py-8 text-center text-slate-400"><ReceiptText className="mb-2 h-8 w-8" /><p className="text-sm">Adicione produtos ao pedido.</p></div>
             ) : cartItems.map(({ produto, quantidade, precoUnitario, subtotal: itemSubtotal }) => (
               <div key={produto.id} className="rounded-xl bg-slate-50 p-3 dark:bg-slate-900/60">
-                <div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="truncate text-sm font-bold text-slate-800 dark:text-slate-100">{produto.nome}</p><p className="text-xs text-slate-500">{money.format(precoUnitario)} cada</p></div><button type="button" onClick={() => changeQuantity(produto, 0)} className="rounded-md p-1 text-slate-400 hover:bg-red-50 hover:text-red-600" aria-label={`Remover ${produto.nome} do pedido`}><Trash2 className="h-4 w-4" /></button></div>
+                <div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="truncate text-sm font-bold text-slate-800 dark:text-slate-100">{produto.nome}</p><p className="text-xs text-slate-500">{money.format(precoUnitario)} / {unitShort(produto.unidadeMedida)}</p></div><button type="button" onClick={() => changeQuantity(produto, 0)} className="rounded-md p-1 text-slate-400 hover:bg-red-50 hover:text-red-600" aria-label={`Remover ${produto.nome} do pedido`}><Trash2 className="h-4 w-4" /></button></div>
                 <div className="mt-3 flex items-center justify-between">
                   <div className="flex items-center rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
-                    <button type="button" onClick={() => changeQuantity(produto, quantidade - 1)} className="p-1.5 text-slate-500 hover:text-blue-600" aria-label={`Diminuir quantidade de ${produto.nome}`}><Minus className="h-3.5 w-3.5" /></button>
-                    <span className="min-w-8 text-center text-sm font-bold text-slate-800 dark:text-slate-100">{quantidade}</span>
-                    <button type="button" onClick={() => changeQuantity(produto, quantidade + 1)} className="p-1.5 text-slate-500 hover:text-blue-600" aria-label={`Aumentar quantidade de ${produto.nome}`}><Plus className="h-3.5 w-3.5" /></button>
+                    <button type="button" onClick={() => changeQuantity(produto, quantidade - quantityStep(produto.unidadeMedida))} className="p-1.5 text-slate-500 hover:text-blue-600" aria-label={`Diminuir quantidade de ${produto.nome}`}><Minus className="h-3.5 w-3.5" /></button>
+                    <span className="min-w-16 text-center text-xs font-bold text-slate-800 dark:text-slate-100">{formatQuantity(quantidade, produto.unidadeMedida)}</span>
+                    <button type="button" onClick={() => changeQuantity(produto, quantidade + quantityStep(produto.unidadeMedida))} className="p-1.5 text-slate-500 hover:text-blue-600" aria-label={`Aumentar quantidade de ${produto.nome}`}><Plus className="h-3.5 w-3.5" /></button>
                   </div>
                   <p className="font-black text-slate-900 dark:text-slate-100">{money.format(itemSubtotal)}</p>
                 </div>
@@ -369,9 +393,18 @@ export default function DashboardVendasPage() {
       </div>
 
       <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-        <div className="mb-4 flex items-center gap-2"><History className="h-5 w-5 text-blue-600" /><div><h2 className="font-black text-slate-900 dark:text-slate-100">Vendas recentes</h2><p className="text-xs text-slate-500">Últimos registros desta conta.</p></div></div>
-        {loading ? <div className="flex h-24 items-center justify-center"><LoadingSpinner size="md" /></div> : vendas.length === 0 ? <div className="rounded-2xl bg-slate-50 py-10 text-center text-sm text-slate-500 dark:bg-slate-900/50">Nenhuma venda registrada ainda.</div> : (
-          <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-sm"><thead><tr className="border-b border-slate-100 text-left text-xs uppercase tracking-wide text-slate-400 dark:border-slate-700"><th className="px-3 py-3">Data</th><th className="px-3 py-3">Produtos</th><th className="px-3 py-3">Cliente</th><th className="px-3 py-3">Pagamento</th><th className="px-3 py-3 text-right">Total</th><th className="px-3 py-3 text-right">Ações</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-700">{vendas.slice(0, 10).map((venda) => <tr key={venda.id} className="text-slate-700 dark:text-slate-300"><td className="whitespace-nowrap px-3 py-3">{dateTime.format(new Date(venda.criadoEm))}</td><td className="max-w-sm px-3 py-3"><p className="truncate font-medium">{venda.itens.map((item) => `${item.quantidade}× ${item.nome}`).join(', ')}</p><p className="text-xs text-slate-400">{venda.quantidadeItens} unidade(s)</p></td><td className="px-3 py-3">{venda.clienteNome || 'Consumidor final'}</td><td className="px-3 py-3"><span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2 py-1 text-xs font-medium dark:bg-slate-700">{venda.metodoPagamento === 'dinheiro' ? <Banknote className="h-3 w-3" /> : venda.metodoPagamento === 'pix' ? <QrCode className="h-3 w-3" /> : <CreditCard className="h-3 w-3" />}{paymentLabels[venda.metodoPagamento]}</span></td><td className="px-3 py-3 text-right font-black text-emerald-600 dark:text-emerald-400">{money.format(venda.total)}</td><td className="px-3 py-3 text-right"><button type="button" onClick={() => startEditing(venda)} className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-50 px-2.5 py-1.5 text-xs font-bold text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-300 dark:hover:bg-indigo-900/50"><Pencil className="h-3.5 w-3.5" />Editar</button></td></tr>)}</tbody></table></div>
+        <div className="flex flex-col gap-4 border-b border-slate-100 pb-4 dark:border-slate-700 xl:flex-row xl:items-center xl:justify-between">
+          <div className="flex items-center gap-2"><History className="h-5 w-5 text-blue-600" /><div><h2 className="font-black text-slate-900 dark:text-slate-100">Vendas recentes</h2><p className="text-xs text-slate-500">{recentFiltered.length} registro(s) · {money.format(recentTotal)}</p></div></div>
+          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-[minmax(12rem,1fr)_auto_auto_auto_auto]">
+            <label className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 dark:border-slate-700"><Search className="h-4 w-4 text-slate-400" /><input value={recentSearch} onChange={(event) => setRecentSearch(event.target.value)} className="min-w-0 bg-transparent text-sm outline-none" placeholder="Produto ou cliente" /></label>
+            <select value={recentPayment} onChange={(event) => setRecentPayment(event.target.value)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900"><option value="">Pagamento</option>{Object.entries(paymentLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+            <input type="date" aria-label="Data inicial" value={recentDateFrom} onChange={(event) => setRecentDateFrom(event.target.value)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900" />
+            <input type="date" aria-label="Data final" value={recentDateTo} onChange={(event) => setRecentDateTo(event.target.value)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900" />
+            <button type="button" onClick={() => { setRecentSearch(''); setRecentPayment(''); setRecentDateFrom(''); setRecentDateTo(''); }} className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700"><Filter className="h-4 w-4" />Limpar</button>
+          </div>
+        </div>
+        {loading ? <div className="flex h-24 items-center justify-center"><LoadingSpinner size="md" /></div> : vendas.length === 0 ? <div className="mt-4 rounded-2xl bg-slate-50 py-10 text-center text-sm text-slate-500 dark:bg-slate-900/50">Nenhuma venda registrada ainda.</div> : recentFiltered.length === 0 ? <div className="mt-4 rounded-2xl bg-slate-50 py-10 text-center text-sm text-slate-500 dark:bg-slate-900/50">Nenhuma venda corresponde aos filtros.</div> : (
+          <div className="mt-2 overflow-x-auto"><table className="w-full min-w-[760px] text-sm"><thead><tr className="border-b border-slate-100 text-left text-xs uppercase tracking-wide text-slate-400 dark:border-slate-700"><th className="px-3 py-3">Data</th><th className="px-3 py-3">Produtos</th><th className="px-3 py-3">Cliente</th><th className="px-3 py-3">Pagamento</th><th className="px-3 py-3 text-right">Total</th><th className="px-3 py-3 text-right">Ações</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-700">{recentFiltered.slice(0, 25).map((venda) => <tr key={venda.id} className="text-slate-700 dark:text-slate-300"><td className="whitespace-nowrap px-3 py-3">{dateTime.format(new Date(venda.criadoEm))}</td><td className="max-w-sm px-3 py-3"><p className="truncate font-medium">{venda.itens.map((item) => `${formatQuantity(item.quantidade, item.unidadeMedida)} de ${item.nome}`).join(', ')}</p><p className="text-xs text-slate-400">{venda.itens.length} produto(s)</p></td><td className="px-3 py-3">{venda.clienteNome || 'Consumidor final'}</td><td className="px-3 py-3"><span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2 py-1 text-xs font-medium dark:bg-slate-700">{venda.metodoPagamento === 'dinheiro' ? <Banknote className="h-3 w-3" /> : venda.metodoPagamento === 'pix' ? <QrCode className="h-3 w-3" /> : <CreditCard className="h-3 w-3" />}{paymentLabels[venda.metodoPagamento]}</span></td><td className="px-3 py-3 text-right font-black text-emerald-600 dark:text-emerald-400">{money.format(venda.total)}</td><td className="px-3 py-3 text-right"><button type="button" onClick={() => startEditing(venda)} className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-50 px-2.5 py-1.5 text-xs font-bold text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-300 dark:hover:bg-indigo-900/50"><Pencil className="h-3.5 w-3.5" />Editar</button></td></tr>)}</tbody></table></div>
         )}
       </section>
     </div>

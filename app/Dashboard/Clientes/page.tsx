@@ -54,7 +54,7 @@ export default function ClientesPage() {
   }
 
   return (
-    <div className="dashboard-page max-w-7xl space-y-6">
+    <div className="dashboard-page space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div><h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white md:text-3xl">Clientes</h1><p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{clientes.length} cliente{clientes.length === 1 ? '' : 's'} cadastrado{clientes.length === 1 ? '' : 's'}</p></div>
         <div className="flex w-full gap-2 md:w-auto"><button onClick={exportCSV} disabled={!filtered.length} className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-100 disabled:opacity-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700 md:flex-none"><Download className="h-4 w-4" />Exportar</button><button onClick={openAdd} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-blue-700 md:flex-none"><Plus className="h-4 w-4" />Novo cliente</button></div>
