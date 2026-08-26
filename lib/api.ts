@@ -11,14 +11,15 @@ import {
   deleteDoc,
   doc,
   runTransaction,
+  writeBatch,
 } from 'firebase/firestore';
 
 const BASE_URL = '';
 
 // ═══════════════ Auth helper ═══════════════
 
-function withToken(options?: RequestInit): RequestInit {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('@CortexAI:token') : null;
+async function withToken(options?: RequestInit): Promise<RequestInit> {
+  const token = auth.currentUser ? await auth.currentUser.getIdToken() : null;
   const headers = new Headers(options?.headers);
   if (!headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
   if (token) headers.set('Authorization', `Bearer ${token}`);
@@ -26,7 +27,7 @@ function withToken(options?: RequestInit): RequestInit {
 }
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, withToken(options));
+  const res = await fetch(`${BASE_URL}${path}`, await withToken(options));
   if (!res.ok) {
     const text = await res.text();
     throw new Error(text || `HTTP ${res.status}`);
@@ -129,6 +130,49 @@ export async function deleteProduto(
   await deleteDoc(
     doc(db, 'empresas', uid, 'produtos', id)
   );
+}
+
+export interface ProdutoImportUpdate {
+  id: string;
+  data: Record<string, unknown>;
+}
+
+/** Salva importações grandes em lotes abaixo do limite de 500 operações do Firestore. */
+export async function saveImportedProducts(
+  newProducts: Array<Record<string, unknown>>,
+  updates: ProdutoImportUpdate[] = []
+): Promise<void> {
+  const { uid, email } = getCurrentAccount();
+  const now = new Date().toISOString();
+  const operations: Array<
+    | { kind: 'create'; data: Record<string, unknown> }
+    | { kind: 'update'; id: string; data: Record<string, unknown> }
+  > = [
+    ...newProducts.map((data) => ({ kind: 'create' as const, data })),
+    ...updates.map((update) => ({ kind: 'update' as const, ...update })),
+  ];
+
+  for (let start = 0; start < operations.length; start += 400) {
+    const batch = writeBatch(db);
+    for (const operation of operations.slice(start, start + 400)) {
+      if (operation.kind === 'create') {
+        const reference = doc(collection(db, 'empresas', uid, 'produtos'));
+        batch.set(reference, {
+          ...removeUndefinedFields(operation.data),
+          proprietarioUid: uid,
+          proprietarioEmail: email,
+          criadoEm: now,
+          atualizadoEm: now,
+        });
+      } else {
+        batch.update(doc(db, 'empresas', uid, 'produtos', operation.id), {
+          ...removeUndefinedFields(operation.data),
+          atualizadoEm: now,
+        });
+      }
+    }
+    await batch.commit();
+  }
 }
 
 // ═══════════════ Categorias ═══════════════

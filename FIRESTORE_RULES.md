@@ -10,9 +10,11 @@ service cloud.firestore {
 
     match /empresas/{userId} {
 
-      allow read, write:
+      allow read:
       if request.auth != null
       && request.auth.uid == userId;
+
+      allow create, update, delete: if false;
 
       match /{document=**} {
         allow read, write:

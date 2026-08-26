@@ -4,7 +4,7 @@ Sistema web desenvolvido com Next.js, React e Firebase.
 
 ## Requisitos
 
-- [Node.js](https://nodejs.org/) 20.9 ou superior (recomendado: versão LTS atual)
+- [Node.js](https://nodejs.org/) 22 ou superior
 - npm 10 ou superior, instalado junto com o Node.js
 - Um projeto Firebase com Authentication e Firestore habilitados
 
@@ -44,13 +44,25 @@ As dependências JavaScript necessárias estão declaradas em `package.json` e b
 
 ## Produção
 
-Após configurar as mesmas variáveis de ambiente no servidor de hospedagem:
+Antes de publicar:
+
+1. Configure na hospedagem todas as variáveis listadas em `.env.example`. `FIREBASE_PRIVATE_KEY`, `FIREBASE_CLIENT_EMAIL` e `TURNSTILE_SECRET_KEY` são segredos e nunca devem ser expostos no navegador.
+2. Adicione o domínio publicado aos domínios autorizados do Firebase Authentication e aos nomes de host permitidos do Cloudflare Turnstile.
+3. Publique as regras de segurança do banco:
+
+   ```bash
+   firebase deploy --only firestore:rules
+   ```
+
+4. Gere e execute a versão de produção:
 
 ```bash
 npm ci
 npm run build
 npm start
 ```
+
+5. Depois da publicação, teste a página inicial, login, criação de uma conta de teste, recuperação de senha e o isolamento dos dados entre duas contas diferentes.
 
 ## Comandos disponíveis
 

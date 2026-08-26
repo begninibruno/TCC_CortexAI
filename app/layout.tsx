@@ -8,7 +8,7 @@ export const metadata: Metadata = {
     default: 'CortexAI — Gestão inteligente para o varejo',
     template: '%s | CortexAI',
   },
-  description: 'Gestão de produtos, estoque, clientes e vendas em um painel simples e inteligente.',
+  description: 'Gestão de produtos, estoque, clientes, vendas e atendimento físico inteligente em um só lugar.',
   applicationName: 'CortexAI',
   icons: { icon: '/logo.png', apple: '/logo.png' },
 };

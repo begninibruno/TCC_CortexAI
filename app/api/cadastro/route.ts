@@ -18,6 +18,10 @@ export async function POST(req: NextRequest) {
   let createdUserId: string | null = null;
 
   try {
+    const contentLength = Number(req.headers.get('content-length') || 0);
+    if (contentLength > 20_000) {
+      return NextResponse.json({ erro: 'Os dados enviados excedem o tamanho permitido.' }, { status: 413 });
+    }
     const body = await req.json();
     const { empresa, responsavel, email, telefone, cpfCnpj, senha, plano, captchaToken } = body ?? {};
 
@@ -33,6 +37,9 @@ export async function POST(req: NextRequest) {
 
     if (!empresaLimpa || !responsavelLimpo || !emailLimpo || !telefoneLimpo || !cpfCnpjLimpo || !senha) {
       return NextResponse.json({ erro: 'Todos os campos são obrigatórios' }, { status: 400 });
+    }
+    if (empresaLimpa.length > 120 || responsavelLimpo.length > 120 || emailLimpo.length > 254) {
+      return NextResponse.json({ erro: 'Um ou mais campos excedem o tamanho permitido.' }, { status: 400 });
     }
     if (!emailRegex.test(emailLimpo)) {
       return NextResponse.json({ erro: 'E-mail inválido' }, { status: 400 });
@@ -87,9 +94,14 @@ export async function POST(req: NextRequest) {
   } catch (error: unknown) {
     if (createdUserId) {
       try {
+        await getAdminDb().collection('empresas').doc(createdUserId).delete();
+      } catch (rollbackError) {
+        console.error('Erro ao remover dados do cadastro incompleto:', rollbackError);
+      }
+      try {
         await getAdminAuth().deleteUser(createdUserId);
       } catch (rollbackError) {
-        console.error('Erro ao desfazer cadastro incompleto:', rollbackError);
+        console.error('Erro ao remover usuário do cadastro incompleto:', rollbackError);
       }
     }
 

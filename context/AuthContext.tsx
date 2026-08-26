@@ -26,22 +26,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
           setUser(appUser);
           setToken(idToken);
-          localStorage.setItem('@CortexAI:token', idToken);
-          localStorage.setItem('@CortexAI:user', JSON.stringify(appUser));
-          localStorage.setItem('@CortexAI:uid', firebaseUser.uid);
         } else {
           setUser(null);
           setToken(null);
-          localStorage.removeItem('@CortexAI:token');
-          localStorage.removeItem('@CortexAI:user');
-          localStorage.removeItem('@CortexAI:uid');
         }
       } catch {
         setUser(null);
         setToken(null);
-        localStorage.removeItem('@CortexAI:token');
-        localStorage.removeItem('@CortexAI:user');
-        localStorage.removeItem('@CortexAI:uid');
       } finally {
         setIsLoading(false);
       }
@@ -54,24 +45,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = (newUser: User, newToken: string) => {
     setUser(newUser);
     setToken(newToken);
-    localStorage.setItem('@CortexAI:token', newToken);
-    localStorage.setItem('@CortexAI:user', JSON.stringify(newUser));
-    localStorage.setItem('@CortexAI:uid', newUser.id);
   };
 
   const logout = () => {
     setUser(null);
     setToken(null);
-    localStorage.removeItem('@CortexAI:token');
-    localStorage.removeItem('@CortexAI:user');
-    localStorage.removeItem('@CortexAI:uid');
   };
 
   const updateUserProfile = (updates: Partial<User>) => {
     if (user) {
       const updatedUser = { ...user, ...updates };
       setUser(updatedUser);
-      localStorage.setItem('@CortexAI:user', JSON.stringify(updatedUser));
     }
   };
 

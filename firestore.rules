@@ -3,8 +3,11 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     match /empresas/{userId} {
-      allow read, write: if request.auth != null
+      allow read: if request.auth != null
         && request.auth.uid == userId;
+      // Plano, documento fiscal e dados da empresa são definidos somente pelo
+      // backend administrativo. O cliente não pode elevar o próprio plano.
+      allow create, update, delete: if false;
 
       match /{document=**} {
         allow read, write: if request.auth != null

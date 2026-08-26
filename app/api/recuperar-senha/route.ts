@@ -5,6 +5,10 @@ const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(request: NextRequest) {
   try {
+    const contentLength = Number(request.headers.get('content-length') || 0);
+    if (contentLength > 8_000) {
+      return NextResponse.json({ erro: 'Os dados enviados excedem o tamanho permitido.' }, { status: 413 });
+    }
     const body = await request.json();
     const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : '';
     const captchaToken = typeof body?.captchaToken === 'string' ? body.captchaToken : null;

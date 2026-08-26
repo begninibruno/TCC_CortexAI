@@ -25,6 +25,7 @@ export interface Produto {
   tags?: string | string[] | null;
   descricao?: string | null;
   unidadeMedida?: UnidadeMedida;
+  dadosImportados?: Record<string, string | number | boolean | null> | null;
 }
 
 export interface Categoria {

@@ -138,6 +138,47 @@ button,
   transition-duration: 0.15s;
 }
 
+/* Landing page identity: a clean wall with subtle graphite-like strokes. */
+.cortex-landing {
+  position: relative;
+  isolation: isolate;
+  background-color: #f8fafc;
+}
+
+.cortex-landing::before {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  content: '';
+  pointer-events: none;
+  background-color: rgba(255, 255, 255, 0.72);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='540' height='340' viewBox='0 0 540 340'%3E%3Cg fill='none' stroke='%2364758b' stroke-opacity='.115' stroke-linecap='round'%3E%3Cpath d='M18 62c58-17 105-5 166-23s112-10 168-24'/%3E%3Cpath d='M311 103c49 8 95 3 172-20' stroke-dasharray='2 7'/%3E%3Cpath d='M39 248c66-39 124-21 192-49s123-25 194-43'/%3E%3Cpath d='M370 291c42-18 87-16 143-40' stroke-dasharray='1 9'/%3E%3Cpath d='M126 119l-53 37m68-30l-31 21m362 30l-54 29m41-3l-26 17' stroke-opacity='.075'/%3E%3C/g%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 540px 340px;
+}
+
+html.dark .cortex-landing {
+  background-color: #020617;
+}
+
+html.dark .cortex-landing::before {
+  background-color: rgba(2, 6, 23, 0.82);
+  opacity: 0.62;
+}
+
+.cortex-device-grid::before {
+  position: absolute;
+  inset: 0;
+  content: '';
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(96, 165, 250, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(96, 165, 250, 0.055) 1px, transparent 1px),
+    radial-gradient(circle at 50% 48%, rgba(37, 99, 235, 0.22), transparent 38%);
+  background-size: 42px 42px, 42px 42px, 100% 100%;
+  mask-image: linear-gradient(to bottom, black, rgba(0, 0, 0, 0.4));
+}
+
 /* Scrollbar styling */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
