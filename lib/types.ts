@@ -76,29 +76,10 @@ export interface Venda {
   atualizadoEm: string;
 }
 
-export interface Stats {
-  totalVendas: number;
-  faturamentoTotal: number;
-  ticketMedio: number;
-  produtosUnicos: number;
-  valorEstoque: number;
-}
-
-export interface VendasDia {
-  label: string;
-  date: string;
-  total: number;
-}
-
 export interface ToastMessage {
   id: string;
   type: 'success' | 'error' | 'warning' | 'info';
   message: string;
-}
-
-export interface EspStatus {
-  online: boolean;
-  ultimoHeartbeat: number | null;
 }
 
 export interface Cliente {
@@ -110,28 +91,6 @@ export interface Cliente {
   endereco?: string | null;
   obs?: string | null;
   ativo: boolean;
-  criadoEm: string;
-}
-
-export interface Cupom {
-  id: number;
-  codigo: string;
-  tipo: 'percentual' | 'valor';
-  valor: number;
-  valorMinimo?: number | null;
-  validoAte: string;
-  usosMax: number;
-  usos: number;
-  ativo: boolean;
-  criadoEm: string;
-}
-
-export interface Notificacao {
-  id: number;
-  tipo: string;
-  titulo: string;
-  mensagem: string;
-  lida: boolean;
   criadoEm: string;
 }
 

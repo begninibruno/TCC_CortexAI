@@ -58,6 +58,11 @@ export default function CategoriasPage() {
       addToast('error', 'Informe o nome da categoria.');
       return;
     }
+    // Os produtos são ligados à categoria pelo nome, então ele precisa ser único.
+    if (categorias.some((category) => category.id !== editing?.id && category.nome.trim().toLowerCase() === nome.toLowerCase())) {
+      addToast('error', 'Já existe uma categoria com esse nome.');
+      return;
+    }
     setSaving(true);
     try {
       const data = {

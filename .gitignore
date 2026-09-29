@@ -41,4 +41,5 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-/app/generated/prisma
+# artefatos gerados por ferramentas (previews, planilhas de teste, node_modules)
+/outputs/

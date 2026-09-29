@@ -6,9 +6,14 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { signInDirect } from '@/lib/authClient';
+import Modal from '@/components/Modal';
+import TurnstileCaptcha from '@/components/TurnstileCaptcha';
 import { ArrowRight, CheckCircle, Eye, EyeOff, Lock, Mail, Shield } from 'lucide-react';
 
 type FormErrors = { email?: string; senha?: string; geral?: string };
+
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const captchaConfigurado = Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
 
 export default function PaginaLogin() {
   const router = useRouter();
@@ -23,12 +28,59 @@ export default function PaginaLogin() {
   const [carregando, setCarregando] = useState(false);
   const [mostrarSenha, setMostrarSenha] = useState(false);
 
+  const [recuperacaoAberta, setRecuperacaoAberta] = useState(false);
+  const [emailRecuperacao, setEmailRecuperacao] = useState('');
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaReset, setCaptchaReset] = useState(0);
+  const [enviandoRecuperacao, setEnviandoRecuperacao] = useState(false);
+  const [recuperacao, setRecuperacao] = useState<{ tipo: 'sucesso' | 'erro'; texto: string } | null>(null);
+
+  const abrirRecuperacao = () => {
+    setEmailRecuperacao(formData.email.trim());
+    setRecuperacao(null);
+    setCaptchaToken(null);
+    setRecuperacaoAberta(true);
+  };
+
+  const enviarRecuperacao = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const email = emailRecuperacao.trim().toLowerCase();
+    if (!emailPattern.test(email)) {
+      setRecuperacao({ tipo: 'erro', texto: 'Informe um e-mail válido.' });
+      return;
+    }
+    if (captchaConfigurado && !captchaToken) {
+      setRecuperacao({ tipo: 'erro', texto: 'Confirme a verificação humana antes de continuar.' });
+      return;
+    }
+
+    setEnviandoRecuperacao(true);
+    setRecuperacao(null);
+    try {
+      const response = await fetch('/api/recuperar-senha', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, captchaToken }),
+      });
+      const result = await response.json().catch(() => ({})) as { erro?: string };
+      if (!response.ok) throw new Error(result.erro || 'Não foi possível enviar o e-mail.');
+      // A API responde igual para e-mails cadastrados ou não, para não revelar contas existentes.
+      setRecuperacao({ tipo: 'sucesso', texto: `Se houver uma conta com ${email}, enviaremos um link para criar uma nova senha. Verifique também a caixa de spam.` });
+    } catch (error) {
+      setRecuperacao({ tipo: 'erro', texto: error instanceof Error ? error.message : 'Não foi possível enviar o e-mail.' });
+    } finally {
+      setEnviandoRecuperacao(false);
+      setCaptchaToken(null);
+      setCaptchaReset((current) => current + 1);
+    }
+  };
+
   const validarFormulario = () => {
     const novosErros: FormErrors = {};
 
     if (!formData.email) {
       novosErros.email = 'E-mail é obrigatório';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+    } else if (!emailPattern.test(formData.email)) {
       novosErros.email = 'E-mail inválido';
     }
 
@@ -161,7 +213,16 @@ export default function PaginaLogin() {
 
               {/* Senha */}
               <div>
-                <label htmlFor="login-password" className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Senha</label>
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <label htmlFor="login-password" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Senha</label>
+                  <button
+                    type="button"
+                    onClick={abrirRecuperacao}
+                    className="text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline dark:text-blue-400 dark:hover:text-blue-300"
+                  >
+                    Esqueci minha senha
+                  </button>
+                </div>
                 <div className="relative">
                   <Lock className="absolute left-3 top-3.5 w-5 h-5 text-slate-400 dark:text-slate-500" />
                   <input
@@ -228,6 +289,75 @@ export default function PaginaLogin() {
           </div>
         </div>
       </div>
+
+      <Modal
+        isOpen={recuperacaoAberta}
+        onClose={() => setRecuperacaoAberta(false)}
+        title="Recuperar senha"
+        size="md"
+        footer={recuperacao?.tipo === 'sucesso' ? (
+          <button
+            type="button"
+            onClick={() => setRecuperacaoAberta(false)}
+            className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700"
+          >
+            Voltar ao login
+          </button>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={() => setRecuperacaoAberta(false)}
+              className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-bold text-slate-600 dark:bg-slate-700 dark:text-slate-200"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              form="form-recuperar-senha"
+              disabled={enviandoRecuperacao || (captchaConfigurado && !captchaToken)}
+              className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {enviandoRecuperacao ? 'Enviando...' : 'Enviar link'}
+            </button>
+          </>
+        )}
+      >
+        <form id="form-recuperar-senha" onSubmit={enviarRecuperacao} className="space-y-4">
+          <p className="text-sm text-slate-600 dark:text-slate-400">
+            Informe o e-mail da sua conta. Vamos enviar um link para você criar uma nova senha.
+          </p>
+          {recuperacao && (
+            <div
+              role={recuperacao.tipo === 'erro' ? 'alert' : 'status'}
+              className={`rounded-xl border px-4 py-3 text-sm ${recuperacao.tipo === 'sucesso' ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300' : 'border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300'}`}
+            >
+              {recuperacao.texto}
+            </div>
+          )}
+          {recuperacao?.tipo !== 'sucesso' && (
+            <>
+              <div>
+                <label htmlFor="recuperar-email" className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">E-mail</label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-3.5 w-5 h-5 text-slate-400 dark:text-slate-500" />
+                  <input
+                    type="email"
+                    id="recuperar-email"
+                    autoComplete="email"
+                    value={emailRecuperacao}
+                    onChange={(e) => setEmailRecuperacao(e.target.value)}
+                    disabled={enviandoRecuperacao}
+                    className="w-full pl-10 pr-4 py-3 border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-950 text-slate-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="seu@email.com"
+                  />
+                </div>
+              </div>
+              <TurnstileCaptcha onVerify={setCaptchaToken} resetKey={captchaReset} />
+            </>
+          )}
+        </form>
+      </Modal>
     </div>
   );
 }

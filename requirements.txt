@@ -1,11 +1,11 @@
-CortexAI e um projeto Node.js/Next.js, nao Python. oii
+CortexAI e um projeto Node.js/Next.js, nao Python.
 
 Para instalar todas as dependencias, use o arquivo package-lock.json:
 
     npm ci
 
 Requisitos de ambiente:
-- Node.js >= 20.9.0
+- Node.js >= 22.0.0
 - npm >= 10.0.0
 - Projeto Firebase com Authentication e Cloud Firestore configurados
 - Arquivo .env.local criado a partir de .env.example e preenchido com as credenciais do Firebase

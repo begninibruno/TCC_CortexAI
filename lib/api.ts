@@ -1,39 +1,24 @@
-import type { Produto, Categoria, Venda, Stats, VendasDia, EspStatus, Cliente, Cupom, Notificacao, PaginatedResult, Despesa } from './types';
+import type { Produto, Categoria, Venda, Cliente, PaginatedResult, Despesa } from './types';
 import { auth, db } from '@/src/firebase';
 
 import {
   collection,
   addDoc,
+  getDoc,
   getDocFromServer,
   getDocs,
   getDocsFromServer,
   updateDoc,
   deleteDoc,
   doc,
+  query,
   runTransaction,
+  where,
   writeBatch,
+  type QueryDocumentSnapshot,
 } from 'firebase/firestore';
 
-const BASE_URL = '';
-
 // ═══════════════ Auth helper ═══════════════
-
-async function withToken(options?: RequestInit): Promise<RequestInit> {
-  const token = auth.currentUser ? await auth.currentUser.getIdToken() : null;
-  const headers = new Headers(options?.headers);
-  if (!headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
-  if (token) headers.set('Authorization', `Bearer ${token}`);
-  return { ...options, headers };
-}
-
-async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, await withToken(options));
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || `HTTP ${res.status}`);
-  }
-  return res.json() as Promise<T>;
-}
 
 function getCurrentAccount(): { uid: string; email: string | null } {
   const user = auth.currentUser;
@@ -217,6 +202,22 @@ export async function createCategoria(
   } as Categoria;
 }
 
+// Os produtos guardam a categoria pelo nome (é o que as telas e relatórios usam).
+// Ignora produtos cujo categoriaId aponta para outra categoria com o mesmo nome.
+async function getProdutosDaCategoria(
+  uid: string,
+  categoriaId: string,
+  nome: string
+): Promise<QueryDocumentSnapshot[]> {
+  const snapshot = await getDocs(
+    query(collection(db, 'empresas', uid, 'produtos'), where('categoria', '==', nome))
+  );
+  return snapshot.docs.filter((produto) => {
+    const produtoCategoriaId = produto.data().categoriaId;
+    return !produtoCategoriaId || produtoCategoriaId === categoriaId;
+  });
+}
+
 export async function updateCategoria(
   data: Record<string, unknown>
 ): Promise<void> {
@@ -226,25 +227,54 @@ export async function updateCategoria(
     throw new Error('ID da categoria não informado');
   }
 
+  const id = String(data.id);
+  const categoriaRef = doc(db, 'empresas', uid, 'categorias', id);
   const categoria = { ...data };
   delete categoria.id;
-  await updateDoc(
-    doc(db, 'empresas', uid, 'categorias', String(data.id)),
-    {
-      ...removeUndefinedFields(categoria),
-      atualizadoEm: new Date().toISOString(),
+  const now = new Date().toISOString();
+
+  const anterior = await getDoc(categoriaRef);
+  if (!anterior.exists()) throw new Error('Esta categoria não existe mais.');
+  const nomeAnterior = String(anterior.data().nome ?? '');
+  const novoNome = typeof categoria.nome === 'string' ? categoria.nome : nomeAnterior;
+  const produtos = nomeAnterior && novoNome !== nomeAnterior
+    ? await getProdutosDaCategoria(uid, id, nomeAnterior)
+    : [];
+
+  // Renomeia a categoria e os produtos dela juntos, em lotes abaixo do limite de 500 operações.
+  const operacoes = [
+    { ref: categoriaRef, data: { ...removeUndefinedFields(categoria), atualizadoEm: now } },
+    ...produtos.map((produto) => ({
+      ref: produto.ref,
+      data: { categoria: novoNome, categoriaId: id, atualizadoEm: now },
+    })),
+  ];
+  for (let start = 0; start < operacoes.length; start += 400) {
+    const batch = writeBatch(db);
+    for (const operacao of operacoes.slice(start, start + 400)) {
+      batch.update(operacao.ref, operacao.data);
     }
-  );
+    await batch.commit();
+  }
 }
 
 export async function deleteCategoria(
   id: string
 ): Promise<void> {
   const uid = getUserUid();
+  const categoriaRef = doc(db, 'empresas', uid, 'categorias', id);
 
-  await deleteDoc(
-    doc(db, 'empresas', uid, 'categorias', id)
-  );
+  const categoria = await getDoc(categoriaRef);
+  if (categoria.exists()) {
+    const produtos = await getProdutosDaCategoria(uid, id, String(categoria.data().nome ?? ''));
+    if (produtos.length > 0) {
+      throw new Error(
+        `Esta categoria é usada por ${produtos.length} produto(s). Mude a categoria desses produtos antes de excluí-la.`
+      );
+    }
+  }
+
+  await deleteDoc(categoriaRef);
 }
 
 // ═══════════════ Vendas ═══════════════
@@ -513,36 +543,6 @@ export async function deleteDespesa(id: string): Promise<void> {
   await deleteDoc(doc(db, 'empresas', uid, 'despesas', id));
 }
 
-// ═══════════════ Stats & Charts ═══════════════
-export async function getStats(): Promise<Stats> {
-  return request<Stats>('/api/stats');
-}
-
-export async function getVendas7Dias(): Promise<VendasDia[]> {
-  return request<VendasDia[]>('/api/vendas-7dias');
-}
-
-export async function getFaturamentoDia(): Promise<{ valor: number }> {
-  return request<{ valor: number }>('/api/faturamento-dia');
-}
-
-// ═══════════════ Relatórios ═══════════════
-export async function getRelatorioFaturamento(periodo: string, inicio?: string, fim?: string) {
-  const params: Record<string, string> = { periodo };
-  if (inicio) params.inicio = inicio;
-  if (fim) params.fim = fim;
-  const qs = new URLSearchParams(params).toString();
-  return request(`/api/relatorios/faturamento?${qs}`);
-}
-
-export async function getRelatorioTopProdutos(limit?: number) {
-  return request(`/api/relatorios/top-produtos?limit=${limit || 10}`);
-}
-
-export async function getRelatorioVendasPorDia(inicio: string, fim: string) {
-  return request(`/api/relatorios/vendas-por-dia?inicio=${inicio}&fim=${fim}`);
-}
-
 // ═══════════════ Clientes ═══════════════
 export async function getClientes(): Promise<Cliente[]> {
   const uid = getUserUid();
@@ -573,73 +573,7 @@ export async function deleteCliente(id: string): Promise<void> {
   await deleteDoc(doc(db, 'empresas', uid, 'clientes', id));
 }
 
-// ═══════════════ Cupons ═══════════════
-export async function getCupons(): Promise<Cupom[]> {
-  return request<Cupom[]>('/api/cupons');
-}
-
-export async function createCupom(data: Record<string, unknown>) {
-  return request('/api/cupom', { method: 'POST', body: JSON.stringify(data) });
-}
-
-export async function updateCupom(id: number, data: Record<string, unknown>) {
-  return request('/api/cupom', { method: 'PUT', body: JSON.stringify({ id, ...data }) });
-}
-
-export async function deleteCupom(codigo: string): Promise<void> {
-  return request<void>('/api/cupom', { method: 'DELETE', body: JSON.stringify({ codigo }) });
-}
-
-export async function validarCupom(codigo: string) {
-  return request(`/api/cupons/${codigo}/validar`, { method: 'POST' });
-}
-
-// ═══════════════ Notificações ═══════════════
-export async function getNotificacoes(naoLidasOnly = false): Promise<Notificacao[]> {
-  const lida = naoLidasOnly ? 'false' : undefined;
-  const qs = lida ? `?lida=${lida}` : '';
-  const result = await request<{ data: Notificacao[] }>(`/api/notificacoes${qs}`);
-  return result.data;
-}
-
-export async function marcarNaoLidasCount(): Promise<number> {
-  const result = await request<{ count: number }>('/api/notificacoes/nao-lidas/count');
-  return result.count;
-}
-
-export async function marcarNotificacaoLida(id: number): Promise<void> {
-  return request<void>(`/api/notificacao/${id}/lida`, { method: 'PUT' });
-}
-
-export async function marcarTodasLidas(): Promise<void> {
-  return request<void>('/api/notificacoes/lidas', { method: 'PUT' });
-}
-
-// ═══════════════ AI ═══════════════
-type AIResponse = {
-  itens: Array<{
-    nome: string;
-    quantidade?: number;
-  }>;
-};
-
-export async function processarTexto(texto: string): Promise<AIResponse> {
-  return request<AIResponse>('/api/processar-texto', {
-    method: 'POST',
-    body: JSON.stringify({ texto })
-  });
-}
-
-// ═══════════════ ESP32 ═══════════════
-export async function getEspStatus(): Promise<EspStatus> {
-  return request<EspStatus>('/api/esp-status');
-}
-
 // ═══════════════ Estoque ═══════════════
-export async function getEstoqueBaixo(): Promise<{ produtos: Array<{ id: number; nome: string; estoque: number; limite: number; diferenca: number }>; total: number }> {
-  return request('/api/relatorios/estoque-baixo');
-}
-
 export async function getEstoqueResumo(): Promise<{ totalItens: number; valorTotalCusto: number; produtosCadastrados: number; semEstoque: number }> {
   const produtos = await getProdutos();
   return produtos.reduce(
