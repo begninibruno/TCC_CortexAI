@@ -2,12 +2,18 @@
 // validação do pedido e busca aproximada do produto pelo nome falado.
 // Não acessa o Firebase; a gravação fica em app/api/esp/comando/route.ts.
 
-export type AcaoEsp = 'baixa' | 'entrada';
+export type AcaoEsp = 'baixa' | 'entrada' | 'cadastro';
 
 export interface ItemComandoEsp {
+  /** Nome sem acentos, usado para comparar com os produtos cadastrados. */
   nome: string;
+  /** Nome como foi falado (com acentos), usado ao cadastrar um produto novo. */
+  nomeFalado: string;
   quantidade: number;
+  /** false quando a frase não disse quantidade ("cadastrar coca valor 12 reais"). */
+  quantidadeExplicita: boolean;
   preco: number | null;
+  categoria: string | null;
 }
 
 export interface ComandoEsp {
@@ -41,7 +47,9 @@ export function validarComando(corpo: unknown): { ok: true; comando: ComandoEsp 
   if (typeof texto !== 'string' || !texto.trim() || texto.length > 300) {
     return { ok: false, mensagem: 'Texto do comando inválido.' };
   }
-  if (acao !== 'baixa' && acao !== 'entrada') return { ok: false, mensagem: 'Ação inválida: use baixa ou entrada.' };
+  if (acao !== 'baixa' && acao !== 'entrada' && acao !== 'cadastro') {
+    return { ok: false, mensagem: 'Ação inválida: use baixa, entrada ou cadastro.' };
+  }
   if (typeof acaoExplicita !== 'boolean') return { ok: false, mensagem: 'Campo acaoExplicita inválido.' };
   if (!Array.isArray(itens) || itens.length === 0) return { ok: false, mensagem: 'Nenhum produto foi entendido na frase.' };
   if (itens.length > LIMITE_ITENS) return { ok: false, mensagem: `Fale no máximo ${LIMITE_ITENS} produtos por vez.` };
@@ -49,9 +57,19 @@ export function validarComando(corpo: unknown): { ok: true; comando: ComandoEsp 
   const lista: ItemComandoEsp[] = [];
   for (const item of itens) {
     if (!item || typeof item !== 'object') return { ok: false, mensagem: 'Item do comando inválido.' };
-    const { nome, quantidade, preco } = item as Record<string, unknown>;
+    const { nome, nomeFalado, quantidade, quantidadeExplicita, preco, categoria } = item as Record<string, unknown>;
     if (typeof nome !== 'string' || !nome.trim() || nome.length > 80) {
       return { ok: false, mensagem: 'Nome de produto inválido.' };
+    }
+    if (nomeFalado !== undefined && (typeof nomeFalado !== 'string' || !nomeFalado.trim() || nomeFalado.length > 80)) {
+      return { ok: false, mensagem: 'Nome de produto inválido.' };
+    }
+    if (quantidadeExplicita !== undefined && typeof quantidadeExplicita !== 'boolean') {
+      return { ok: false, mensagem: 'Campo quantidadeExplicita inválido.' };
+    }
+    const semCategoria = categoria === null || categoria === undefined;
+    if (!semCategoria && (typeof categoria !== 'string' || !categoria.trim() || categoria.length > 60)) {
+      return { ok: false, mensagem: 'Categoria inválida.' };
     }
     if (typeof quantidade !== 'number' || !Number.isFinite(quantidade) || quantidade <= 0 || quantidade > LIMITE_QUANTIDADE) {
       return { ok: false, mensagem: `Quantidade inválida para ${nome}.` };
@@ -62,8 +80,11 @@ export function validarComando(corpo: unknown): { ok: true; comando: ComandoEsp 
     }
     lista.push({
       nome: nome.trim(),
+      nomeFalado: typeof nomeFalado === 'string' ? nomeFalado.trim() : nome.trim(),
       quantidade: arredondarQuantidade(quantidade),
+      quantidadeExplicita: quantidadeExplicita !== false,
       preco: semPreco ? null : Math.round((preco as number) * 100) / 100,
+      categoria: semCategoria ? null : (categoria as string).trim(),
     });
   }
   return { ok: true, comando: { texto: texto.trim(), acao, acaoExplicita, itens: lista } };

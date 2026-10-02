@@ -13,16 +13,18 @@ import {
   type ComandoEsp,
   type ItemComandoEsp,
 } from '@/lib/espComando';
-import type { ItemVenda, Produto, Venda } from '@/lib/types';
+import type { Categoria, ItemVenda, Produto, Venda } from '@/lib/types';
 
 // Recebe do servidor de voz do PC (projeto esp32-cortex) o comando já transcrito e
 // interpretado, por exemplo "vendi dois brigadeiros" ou "adicionar 1 coca valor 12 reais",
 // e grava na conta configurada em ESP32_EMPRESA_EMAIL:
-//   baixa   -> cria a venda e desconta o estoque (mesmas regras de registrarVenda em lib/api.ts)
-//   entrada -> soma no estoque; produto novo é cadastrado se a frase disser o preço
+//   baixa    -> cria a venda e desconta o estoque (mesmas regras de registrarVenda em lib/api.ts)
+//   entrada  -> soma no estoque; produto novo é cadastrado se a frase disser o preço
+//   cadastro -> cria o produto (preço obrigatório, estoque 0 se a frase não disser quantidade)
 // Só aceita pedidos com o segredo ESP32_SITE_TOKEN no cabeçalho X-CortexAI-Token.
 
 type ProdutoSalvo = Partial<Produto> & { id: string; nome: string };
+type CategoriaSalva = { id: string; nome: string };
 type Conta = { uid: string; email: string | null };
 type Correspondencia = { item: ItemComandoEsp; produto: ProdutoSalvo | null };
 
@@ -162,28 +164,113 @@ async function gravarVendaPorVoz(db: Firestore, conta: Conta, comando: ComandoEs
   });
 }
 
+async function carregarCategorias(db: Firestore, uid: string): Promise<CategoriaSalva[]> {
+  const snapshot = await db.collection('empresas').doc(uid).collection('categorias').get();
+  return snapshot.docs
+    .map((doc) => ({ id: doc.id, nome: (doc.data() as Partial<Categoria>).nome }))
+    .filter((categoria): categoria is CategoriaSalva => typeof categoria.nome === 'string' && categoria.nome.trim() !== '');
+}
+
+/** Categoria falada ("categoria bebidas") -> categoria cadastrada; sem correspondência fica em "Sem categoria". */
+function escolherCategoria(falada: string | null, categorias: CategoriaSalva[]) {
+  if (!falada) return { categoria: 'Sem categoria', categoriaId: null as string | null, aviso: '' };
+  const { produto: encontrada } = encontrarProduto(falada, categorias);
+  if (encontrada) return { categoria: encontrada.nome, categoriaId: encontrada.id as string | null, aviso: '' };
+  return { categoria: 'Sem categoria', categoriaId: null as string | null, aviso: ` (categoria "${falada}" não encontrada)` };
+}
+
+/** Mesmos campos que a tela de Produtos grava em createProduto. */
+function dadosProdutoNovo(
+  conta: Conta,
+  agora: string,
+  novo: { nome: string; preco: number; estoque: number },
+  categoria: { categoria: string; categoriaId: string | null }
+) {
+  return {
+    nome: novo.nome,
+    preco: novo.preco,
+    estoque: novo.estoque,
+    unidadeMedida: 'unidade',
+    categoria: categoria.categoria,
+    categoriaId: categoria.categoriaId,
+    status: 'ativo',
+    descricao: 'Cadastrado por voz pelo ESP32.',
+    proprietarioUid: conta.uid,
+    proprietarioEmail: conta.email,
+    criadoEm: agora,
+    atualizadoEm: agora,
+  };
+}
+
+async function gravarCadastroPorVoz(db: Firestore, conta: Conta, correspondencias: Correspondencia[]) {
+  const semPreco = correspondencias.find((c) => c.item.preco === null);
+  if (semPreco) {
+    throw new ErroComando(
+      422,
+      'CADASTRO_SEM_PRECO',
+      `Diga o preço para cadastrar, ex.: cadastrar ${semPreco.item.nomeFalado} valor 10 reais.`
+    );
+  }
+  // Cadastrar não mexe em produto existente: evita duplicar "Coca" ou alterar o estoque sem querer.
+  const existente = correspondencias.find((c) => c.produto);
+  if (existente?.produto) {
+    throw new ErroComando(
+      409,
+      'PRODUTO_JA_CADASTRADO',
+      `Já existe o produto ${existente.produto.nome}. Para somar no estoque, use "adicionar"; para um produto novo, fale outro nome.`
+    );
+  }
+  const novos = new Map<string, { nome: string; preco: number; estoque: number; categoria: string | null }>();
+  for (const { item } of correspondencias) {
+    const chave = normalizar(item.nome);
+    const atual = novos.get(chave);
+    novos.set(chave, {
+      nome: nomeDoProduto(item.nomeFalado),
+      preco: item.preco ?? atual?.preco ?? 0,
+      // Sem quantidade falada ("cadastrar coca valor 12 reais"), o produto começa com estoque 0.
+      estoque: arredondarQuantidade((atual?.estoque ?? 0) + (item.quantidadeExplicita ? item.quantidade : 0)),
+      categoria: item.categoria ?? atual?.categoria ?? null,
+    });
+  }
+  const categorias = await carregarCategorias(db, conta.uid);
+  const empresa = db.collection('empresas').doc(conta.uid);
+  const lote = db.batch();
+  const agora = new Date().toISOString();
+  const partes: string[] = [];
+  for (const novo of novos.values()) {
+    const categoria = escolherCategoria(novo.categoria, categorias);
+    lote.set(empresa.collection('produtos').doc(), dadosProdutoNovo(conta, agora, novo, categoria));
+    const onde = categoria.categoriaId ? `, categoria ${categoria.categoria}` : ', sem categoria';
+    partes.push(`${novo.nome}, ${formatarDinheiro(novo.preco)}, estoque ${formatarQuantidade(novo.estoque)}${onde}${categoria.aviso}`);
+  }
+  await lote.commit();
+  return { resumo: `${partes.length > 1 ? 'Produtos cadastrados' : 'Produto cadastrado'}: ${partes.join('; ')}` };
+}
+
 async function gravarEntradaPorVoz(db: Firestore, conta: Conta, correspondencias: Correspondencia[]) {
   const novoSemPreco = correspondencias.find((c) => !c.produto && c.item.preco === null);
   if (novoSemPreco) {
-    const nome = novoSemPreco.item.nome;
+    const nome = novoSemPreco.item.nomeFalado;
     throw new ErroComando(
       422,
       'PRODUTO_NOVO_SEM_PRECO',
-      `"${nome}" ainda não está cadastrado. Diga o valor para cadastrar, ex.: adicionar 1 ${nome} valor 10 reais.`
+      `"${nome}" ainda não está cadastrado. Diga o valor para cadastrar, ex.: cadastrar ${nome} valor 10 reais.`
     );
   }
   const existentes = agruparPorProduto(correspondencias);
-  const novos = new Map<string, { nome: string; quantidade: number; preco: number }>();
+  const novos = new Map<string, { nome: string; estoque: number; preco: number; categoria: string | null }>();
   for (const { item, produto } of correspondencias) {
     if (produto) continue;
     const chave = normalizar(item.nome);
     const atual = novos.get(chave);
     novos.set(chave, {
-      nome: nomeDoProduto(item.nome),
-      quantidade: arredondarQuantidade((atual?.quantidade ?? 0) + item.quantidade),
+      nome: nomeDoProduto(item.nomeFalado),
+      estoque: arredondarQuantidade((atual?.estoque ?? 0) + item.quantidade),
       preco: item.preco ?? atual?.preco ?? 0,
+      categoria: item.categoria ?? atual?.categoria ?? null,
     });
   }
+  const categorias = novos.size ? await carregarCategorias(db, conta.uid) : [];
   const empresa = db.collection('empresas').doc(conta.uid);
 
   return db.runTransaction(async (transacao) => {
@@ -207,22 +294,11 @@ async function gravarEntradaPorVoz(db: Firestore, conta: Conta, correspondencias
     });
 
     for (const novo of novos.values()) {
-      // Mesmos campos que a tela de Produtos grava em createProduto.
-      transacao.set(empresa.collection('produtos').doc(), {
-        nome: novo.nome,
-        preco: novo.preco,
-        estoque: novo.quantidade,
-        unidadeMedida: 'unidade',
-        categoria: 'Sem categoria',
-        categoriaId: null,
-        status: 'ativo',
-        descricao: 'Cadastrado por voz pelo ESP32.',
-        proprietarioUid: conta.uid,
-        proprietarioEmail: conta.email,
-        criadoEm: agora,
-        atualizadoEm: agora,
-      });
-      partes.push(`novo produto ${novo.nome}: ${formatarQuantidade(novo.quantidade)} un. a ${formatarDinheiro(novo.preco)}`);
+      const categoria = escolherCategoria(novo.categoria, categorias);
+      transacao.set(empresa.collection('produtos').doc(), dadosProdutoNovo(conta, agora, novo, categoria));
+      partes.push(
+        `novo produto ${novo.nome}: ${formatarQuantidade(novo.estoque)} un. a ${formatarDinheiro(novo.preco)}${categoria.aviso}`
+      );
     }
     return { resumo: `Estoque atualizado: ${partes.join('; ')}` };
   });
@@ -244,8 +320,10 @@ export async function POST(req: NextRequest) {
   const validacao = validarComando(corpo);
   if (!validacao.ok) return responderErro(400, 'COMANDO_INVALIDO', validacao.mensagem);
   const comando = validacao.comando;
-  // Sem "vendi"/"adicionar" não dá para saber se é venda ou entrada: melhor não gravar nada.
-  if (!comando.acaoExplicita) return responderErro(422, 'SEM_ACAO', 'Comece a frase com "vendi" ou "adicionar".');
+  // Sem verbo não dá para saber o que fazer: melhor não gravar nada.
+  if (!comando.acaoExplicita) {
+    return responderErro(422, 'SEM_ACAO', 'Comece a frase com "vendi", "adicionar" ou "cadastrar".');
+  }
 
   try {
     const conta = await contaDaEmpresa();
@@ -254,13 +332,15 @@ export async function POST(req: NextRequest) {
     const correspondencias: Correspondencia[] = [];
     for (const item of comando.itens) {
       const { produto, ambiguo } = encontrarProduto(item.nome, produtos);
-      if (ambiguo) {
-        throw new ErroComando(422, 'PRODUTO_AMBIGUO', `"${item.nome}" combina com mais de um produto. Fale o nome completo.`);
+      // No cadastro, qualquer produto parecido já basta para recusar (ver gravarCadastroPorVoz).
+      if (ambiguo && comando.acao !== 'cadastro') {
+        throw new ErroComando(422, 'PRODUTO_AMBIGUO', `"${item.nomeFalado}" combina com mais de um produto. Fale o nome completo.`);
       }
       correspondencias.push({ item, produto });
     }
-    const resultado = comando.acao === 'baixa'
-      ? await gravarVendaPorVoz(db, conta, comando, correspondencias)
+    const resultado =
+      comando.acao === 'baixa' ? await gravarVendaPorVoz(db, conta, comando, correspondencias)
+      : comando.acao === 'cadastro' ? await gravarCadastroPorVoz(db, conta, correspondencias)
       : await gravarEntradaPorVoz(db, conta, correspondencias);
     return NextResponse.json({ sucesso: true, acao: comando.acao, ...resultado });
   } catch (erro) {
